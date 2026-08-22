@@ -89,6 +89,41 @@ npm run dev
 
 ---
 
+## Hosting it on a home server (Docker)
+
+For a LAN box — ZimaOS, CasaOS, a Pi, any Linux host with Docker.
+
+Put `.env.local` (from step 2) next to `docker-compose.yml`, then:
+
+```bash
+docker compose up -d --build
+```
+
+```bash
+docker compose exec keystone npx drizzle-kit migrate
+```
+
+```bash
+docker compose exec keystone npm run sync:all
+```
+
+Open `http://<server-ip>:3000` from any machine on the network.
+
+The database lives in `./data`, mounted as a volume, so rebuilding the image never
+discards it. Re-sync on patch days with the same `exec` command.
+
+**Do not port-forward this to the internet.** `/sync` can start runs that make hundreds
+of requests against *your* Blizzard credentials, and there is no authentication —
+appropriate for a LAN with a few friends on it, not for a public URL.
+
+`/sync` is intentionally **not linked in the navigation**; it is an operator page. Visit
+`http://<server-ip>:3000/sync` directly when you need it.
+
+Saved characters live in each visitor's **browser**, not the database, so everyone gets
+their own list without accounts.
+
+---
+
 ## Commands
 
 | Command | What it does |

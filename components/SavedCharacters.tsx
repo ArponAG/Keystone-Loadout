@@ -1,6 +1,6 @@
 'use client';
 
-import type { SavedCharacter } from '@/app/api/character/saved/route';
+import type { SavedCharacter } from '@/lib/saved-characters';
 
 const FACTION_COLOUR: Record<string, string> = {
   alliance: 'var(--color-q-rare)',

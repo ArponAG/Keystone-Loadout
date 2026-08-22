@@ -1,0 +1,31 @@
+# Keystone Loadout on a home server (ZimaOS / CasaOS).
+#
+#   docker compose up -d --build
+#   docker compose exec keystone npx drizzle-kit migrate
+#   docker compose exec keystone npm run sync:all
+#
+# Then open http://<server-ip>:3000 from any machine on the LAN.
+
+services:
+  keystone:
+    build: .
+    container_name: keystone-loadout
+    restart: unless-stopped
+    ports:
+      # Bound to the LAN, not the internet. Do not port-forward this: /sync can start
+      # syncs that make hundreds of requests against your Blizzard credentials.
+      - "3000:3000"
+    # env_file, NOT ${VAR} interpolation: Compose interpolates from `.env`, so
+    # ${BLIZZARD_CLIENT_SECRET} would silently expand to an empty string and the
+    # container would fail its first OAuth call for no visible reason. This keeps one
+    # credentials file, the same one the README and the ETL scripts already use.
+    env_file:
+      - .env.local
+    volumes:
+      # The database and the cached Blizzard token live here. Survives rebuilds.
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s

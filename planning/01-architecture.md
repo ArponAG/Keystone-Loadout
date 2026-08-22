@@ -113,6 +113,8 @@ drizzle/                     generated SQL migrations (committed)
 data/app.db                  gitignored, alongside the WAL files and token cache
 planning/                    these documents
 
+Dockerfile                   multi-stage LAN deployment; data/ is a volume
+docker-compose.yml           reads .env.local via env_file (NOT ${VAR} interpolation)
 next.config.ts               serverExternalPackages: ['better-sqlite3'] — native module
 postcss.config.mjs           @tailwindcss/postcss
 drizzle.config.ts            schema path + sqlite dialect

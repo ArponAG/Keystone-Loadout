@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { CharacterSearch } from '@/components/CharacterSearch';
 import { SavedCharacters } from '@/components/SavedCharacters';
@@ -9,7 +9,13 @@ import { NextUpgrades } from '@/components/NextUpgrades';
 import { WowIcon } from '@/components/WowIcon';
 import { Banner } from '@/components/ui';
 import { slugIconUrl } from '@/lib/domain/icons';
-import type { SavedCharacter } from '@/app/api/character/saved/route';
+import {
+  characterKey,
+  readSaved,
+  removeCharacter,
+  saveCharacter,
+  type SavedCharacter,
+} from '@/lib/saved-characters';
 import type { GearAudit, SlotAudit } from '@/lib/domain/gear-audit';
 import type { Recommendations } from '@/lib/domain/recommend';
 import type { SecondaryKey } from '@/lib/domain/stats';
@@ -57,54 +63,16 @@ export function CharacterLookup() {
   const [order, setOrder] = useState<SecondaryKey[]>(['haste', 'crit', 'mastery', 'vers']);
   const [lastQuery, setLastQuery] = useState<{ region: string; realm: string; name: string } | null>(null);
 
-  const refreshSaved = useCallback(async () => {
-    try {
-      const res = await fetch('/api/character/saved');
-      const body = await res.json();
-      setSaved(body.saved ?? []);
-    } catch {
-      // A missing saved list is not worth an error state; the lookup still works.
-    }
+  // Pinned characters live in localStorage, not the database — see lib/saved-characters.ts.
+  // Loaded in an effect because localStorage does not exist during server rendering.
+  useEffect(() => {
+    setSaved(readSaved());
   }, []);
 
-  useEffect(() => {
-    void refreshSaved();
-  }, [refreshSaved]);
-
   const activeKey = data
-    ? `${data.normalised.region}:${data.normalised.realm}:${data.normalised.name}`.toLowerCase()
+    ? characterKey(data.normalised.region, data.normalised.realm, data.normalised.name)
     : null;
   const isSaved = saved.some((c) => c.cacheKey === activeKey);
-
-  async function toggleSave() {
-    if (!data) return;
-
-    if (isSaved && activeKey) {
-      await fetch(`/api/character/saved?key=${encodeURIComponent(activeKey)}`, { method: 'DELETE' });
-    } else {
-      await fetch('/api/character/saved', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...data.normalised,
-          className: data.profile.class,
-          specName: data.profile.active_spec_name,
-          faction: data.profile.faction,
-          thumbnail: data.profile.thumbnail_url,
-          itemLevel: Math.round(data.profile.gear?.item_level_equipped ?? 0),
-          mplusScore: data.mythicPlus ? Math.round(data.mythicPlus.score) : null,
-        }),
-      });
-    }
-    await refreshSaved();
-  }
-
-  async function removeSaved(character: SavedCharacter) {
-    await fetch(`/api/character/saved?key=${encodeURIComponent(character.cacheKey)}`, {
-      method: 'DELETE',
-    });
-    await refreshSaved();
-  }
 
   async function lookup(
     q: { region: string; realm: string; name: string },
@@ -146,13 +114,32 @@ export function CharacterLookup() {
     void lookup(pick);
   }
 
+  function toggleSave() {
+    if (!data || !activeKey) return;
+
+    setSaved(
+      isSaved
+        ? removeCharacter(activeKey)
+        : saveCharacter({
+            cacheKey: activeKey,
+            ...data.normalised,
+            className: data.profile.class,
+            specName: data.profile.active_spec_name,
+            faction: data.profile.faction,
+            thumbnail: data.profile.thumbnail_url,
+            itemLevel: Math.round(data.profile.gear?.item_level_equipped ?? 0),
+            mplusScore: data.mythicPlus ? Math.round(data.mythicPlus.score) : null,
+          }),
+    );
+  }
+
   return (
     <>
       <SavedCharacters
         saved={saved}
         activeKey={activeKey}
         onPick={(c) => void lookup({ region: c.region, realm: c.realm, name: c.name })}
-        onRemove={(c) => void removeSaved(c)}
+        onRemove={(c) => setSaved(removeCharacter(c.cacheKey))}
       />
 
       <div className="mb-3 rounded-lg border border-line bg-surface p-4">
@@ -222,7 +209,7 @@ export function CharacterLookup() {
         <Profile
           data={data}
           isSaved={isSaved}
-          onToggleSave={() => void toggleSave()}
+          onToggleSave={toggleSave}
           order={order}
           onReorder={(next) => {
             setOrder(next);

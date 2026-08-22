@@ -9,7 +9,9 @@ const NAV = [
   { href: '/loot', label: 'Loot' },
   { href: '/character', label: 'Character' },
   { href: '/news', label: 'News' },
-  { href: '/sync', label: 'Sync' },
+  // /sync is deliberately not linked. It is an operator page — it can start syncs that
+  // make hundreds of Blizzard requests — and this app is served to other people. The
+  // route still works for whoever runs the server; it just is not advertised.
 ];
 
 export function SiteHeader() {
