@@ -91,7 +91,7 @@ npm run dev
 | Command | What it does |
 |---|---|
 | `npm run dev` | Dev server on :3000 |
-| `npm test` | Scoring and filter tests (17) |
+| `npm test` | Unit tests (45) — scoring, filters, build URL parsing, Raider.IO shaping |
 | `npm run verify` | Assumption tripwire — exits non-zero on API drift |
 | `npm run sync:safe` | `verify` then `sync:all` — the one to use |
 | `npm run sync:all` | instances → loot → news |

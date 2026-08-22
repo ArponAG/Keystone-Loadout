@@ -90,6 +90,9 @@ lib/
     slots.ts                 INVENTORY_TYPE -> slot, armor-filter applicability
     icons.ts                 CDN URL builders, quality colours, outbound links
     filters.ts               armor-type + primary eligibility rules
+  raiderio/
+    shape.ts                 pure shaping/normalisation — NO db import, so it is testable
+    character.ts             lookup + 15-min cache; re-exports shape.ts
   scoring/
     score.ts                 fitScore
     score.test.ts            fixtures from real probe items
@@ -148,6 +151,11 @@ drizzle.config.ts            schema path + sqlite dialect
   App code imports `@/lib/db`; scripts import `../lib/db/client`. Do not "tidy" these
   back together — the guard is what makes importing the DB from a Client Component a
   build error rather than a runtime surprise.
+- **`lib/raiderio` is split for the same reason.** `character.ts` imports `@/lib/db`, so
+  anything importing it inherits the `server-only` guard and cannot run under plain
+  Node. The pure shaping and normalisation live in `shape.ts` with no DB import, which
+  is what makes them unit-testable; `character.ts` re-exports them so callers see one
+  module.
 
 ## 5. Rate limiting and etiquette
 
