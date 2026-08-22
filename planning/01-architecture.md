@@ -131,6 +131,12 @@ drizzle.config.ts            schema path + sqlite dialect
   It is read only by `lib/blizzard/auth.ts`, which is only imported by ETL scripts.
 - No React component performs a cross-origin `fetch`. CORS would block Wowhead and
   Raidbots anyway; the rule is about the secret and about not hammering third parties.
+- **One deliberate exception: Wowhead's tooltip embed** loads client-side. It touches
+  neither concern above — no credentials, no polling — and it earns its place by
+  rendering the *real* in-game tooltip, including bonus IDs, gems, enchants and upgrade
+  track. Our schema models none of that, so a homegrown tooltip would show base stats
+  and be quietly wrong for every upgraded item on the character page. Wowhead is
+  credited in the footer. See `05-ui.md` §5.3.
 - ETL scripts are **not** API routes, and no page render can trigger one. They can be
   started from `/sync` by an explicit click (a Server Action spawns the script as a
   detached child process), but never by a GET. See `05-ui.md` §7 for the safety rules

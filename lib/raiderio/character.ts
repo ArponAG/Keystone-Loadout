@@ -11,7 +11,8 @@ import { db, schema } from '@/lib/db';
 
 const BASE = 'https://raider.io/api/v1/characters/profile';
 const UA = 'KeystoneLoadout/0.1 (personal project)';
-const FIELDS = 'gear,mythic_plus_scores_by_season:current,raid_progression';
+const FIELDS =
+  'gear,talents,mythic_plus_scores_by_season:current,mythic_plus_ranks,mythic_plus_best_runs:all,raid_progression';
 
 export const CACHE_TTL_MS = 15 * 60_000;
 
@@ -31,6 +32,45 @@ export type GearItem = {
   // returning legacy junk (tier 999, spell name "Unknown") on current-expansion gear.
 };
 
+/** One chosen talent, trimmed from Raider.IO's full node payload (31 KB -> 6 KB). */
+export type TalentPick = {
+  name: string;
+  icon: string;
+  rank: number;
+  maxRanks: number;
+  /** 0 = class/spec tree; anything else is a hero talent tree. */
+  subTreeId: number;
+  row: number;
+};
+
+export type TalentBuild = {
+  specId: number;
+  /** The in-game import string — the single most useful thing here. */
+  importString: string;
+  picks: TalentPick[];
+};
+
+export type BestRun = {
+  dungeon: string;
+  shortName: string;
+  level: number;
+  upgrades: number;
+  score: number;
+  clearTimeMs: number;
+  parTimeMs: number;
+  url: string;
+};
+
+export type MythicPlus = {
+  score: number;
+  /** Raider.IO's own tier colour for the score. */
+  colour: string;
+  ranks: { world: number; region: number; realm: number } | null;
+  bestRuns: BestRun[];
+  timedRuns: number;
+  highestKey: number;
+};
+
 export type CharacterProfile = {
   name: string;
   race: string;
@@ -47,7 +87,35 @@ export type CharacterProfile = {
     item_level_equipped: number;
     items: Record<string, GearItem>;
   };
-  mythic_plus_scores_by_season?: { scores: Record<string, number> }[];
+  mythic_plus_scores_by_season?: {
+    scores: Record<string, number>;
+    segments?: Record<string, { score: number; color: string }>;
+  }[];
+  mythic_plus_ranks?: Record<string, { world: number; region: number; realm: number }>;
+  mythic_plus_best_runs?: {
+    dungeon: string;
+    short_name: string;
+    mythic_level: number;
+    num_keystone_upgrades: number;
+    score: number;
+    clear_time_ms: number;
+    par_time_ms: number;
+    url: string;
+  }[];
+  talentLoadout?: {
+    loadout_spec_id: number;
+    loadout_text: string;
+    loadout: {
+      node: {
+        subTreeId: number;
+        row: number;
+        entries: { maxRanks: number; spell?: { name?: string; icon?: string } }[];
+      };
+      entryIndex: number;
+      rank: number;
+      grantedNode: boolean;
+    }[];
+  };
   raid_progression?: Record<string, { summary: string; total_bosses: number; mythic_bosses_killed: number; heroic_bosses_killed: number; normal_bosses_killed: number }>;
 };
 
@@ -172,5 +240,76 @@ export async function lookupCharacter(query: CharacterQuery): Promise<LookupResu
     profile: JSON.parse(text) as CharacterProfile,
     cachedAt: fetchedAt,
     stale: false,
+  };
+}
+
+
+// ------------------------------------------------------------ client shaping
+
+/**
+ * Trim the raw profile before it reaches the browser.
+ *
+ * Raider.IO's talent payload is 31 KB of full tree-node data; the UI needs a name, an
+ * icon and a rank. Granted nodes are dropped because they are automatic, not choices.
+ */
+export function shapeTalents(profile: CharacterProfile): TalentBuild | null {
+  const raw = profile.talentLoadout;
+  if (!raw?.loadout) return null;
+
+  const picks: TalentPick[] = raw.loadout
+    .filter((n) => {
+      if (n.grantedNode) return false;
+      // Drop structural nodes. The hero-tree selector is a node with no spell on any
+      // entry — it records which hero tree was chosen, not a talent that was taken,
+      // and would otherwise render as an "Unknown" chip.
+      const entry = n.node.entries[n.entryIndex] ?? n.node.entries[0];
+      return Boolean(entry?.spell?.name);
+    })
+    .map((n) => {
+      const entry = n.node.entries[n.entryIndex] ?? n.node.entries[0];
+
+      // Some nodes report a rank that spans several same-named entries — Warrior's
+      // "Master of Warfare" has three entries (maxRanks 1, 2, 1) and reports rank 4.
+      // Taking the chosen entry's maxRanks alone would render an impossible "4/1".
+      const maxRanks = Math.max(entry?.maxRanks ?? 1, n.rank);
+
+      return {
+        name: entry?.spell?.name ?? 'Unknown',
+        icon: entry?.spell?.icon ?? 'inv_misc_questionmark',
+        rank: n.rank,
+        maxRanks,
+        subTreeId: n.node.subTreeId,
+        row: n.node.row,
+      };
+    })
+    .sort((a, b) => a.row - b.row || a.name.localeCompare(b.name));
+
+  return { specId: raw.loadout_spec_id, importString: raw.loadout_text, picks };
+}
+
+export function shapeMythicPlus(profile: CharacterProfile): MythicPlus | null {
+  const season = profile.mythic_plus_scores_by_season?.[0];
+  if (!season) return null;
+
+  const runs = profile.mythic_plus_best_runs ?? [];
+
+  return {
+    score: season.scores?.all ?? 0,
+    colour: season.segments?.all?.color ?? '#ffffff',
+    ranks: profile.mythic_plus_ranks?.overall ?? null,
+    bestRuns: runs.map((r) => ({
+      dungeon: r.dungeon,
+      shortName: r.short_name,
+      level: r.mythic_level,
+      upgrades: r.num_keystone_upgrades,
+      score: r.score,
+      clearTimeMs: r.clear_time_ms,
+      parTimeMs: r.par_time_ms,
+      url: r.url,
+    })),
+    // Counted from best runs, which is one per dungeon — NOT a lifetime total.
+    // Raider.IO's site shows lifetime counts, but the public API does not expose them.
+    timedRuns: runs.filter((r) => r.num_keystone_upgrades > 0).length,
+    highestKey: runs.reduce((max, r) => Math.max(max, r.mythic_level), 0),
   };
 }

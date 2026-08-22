@@ -3,10 +3,11 @@
 import { useState } from 'react';
 
 import { CharacterSearch } from '@/components/CharacterSearch';
+import { MythicPlusProgression, TalentBuildSection } from '@/components/CharacterSections';
 import { WowIcon } from '@/components/WowIcon';
 import { Banner } from '@/components/ui';
 import { slugIconUrl } from '@/lib/domain/icons';
-import type { CharacterProfile } from '@/lib/raiderio/character';
+import type { CharacterProfile, MythicPlus, TalentBuild } from '@/lib/raiderio/character';
 
 const REGIONS = ['us', 'eu', 'tw', 'kr'] as const;
 
@@ -21,6 +22,8 @@ const QUALITY_BY_INDEX = ['POOR', 'COMMON', 'UNCOMMON', 'RARE', 'EPIC', 'LEGENDA
 
 type Response = {
   profile: CharacterProfile;
+  talents: TalentBuild | null;
+  mythicPlus: MythicPlus | null;
   cachedAt: number;
   stale: boolean;
   normalised: { region: string; realm: string; name: string };
@@ -233,6 +236,14 @@ function Profile({ data }: { data: Response }) {
           })}
         </div>
       </section>
+
+      {data.mythicPlus ? (
+        <MythicPlusProgression mplus={data.mythicPlus} role={profile.active_spec_role} />
+      ) : null}
+
+      {data.talents ? (
+        <TalentBuildSection build={data.talents} spec={`${profile.active_spec_name} ${profile.class}`} />
+      ) : null}
 
       {profile.raid_progression ? (
         <section>

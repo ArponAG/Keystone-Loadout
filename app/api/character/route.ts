@@ -4,6 +4,8 @@ import {
   lookupCharacter,
   normaliseName,
   normaliseRealm,
+  shapeMythicPlus,
+  shapeTalents,
 } from '@/lib/raiderio/character';
 
 /**
@@ -39,9 +41,17 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: result.error }, { status: result.status });
   }
 
+  // Drop the raw talent tree from what ships to the browser — `talents` below is the
+  // same information at a fifth of the size.
+  const { talentLoadout: _raw, ...profile } = result.profile;
+
   return NextResponse.json(
     {
-      profile: result.profile,
+      profile,
+      // Shaped server-side: Raider.IO's raw talent payload is 31 KB of tree-node data
+      // the browser has no use for.
+      talents: shapeTalents(result.profile),
+      mythicPlus: shapeMythicPlus(result.profile),
       cachedAt: result.cachedAt,
       stale: result.stale,
       normalised: { region, realm, name },

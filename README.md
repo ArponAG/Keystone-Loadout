@@ -7,11 +7,13 @@ SQLite database that you sync on demand.
 |---|---|
 | **Build Gear Finder** (`/gear`) | Pick armor type, primary stat and rank the four secondaries. Get gear per slot, ranked by how well each item's secondary budget matches your ranking. |
 | **Dungeon Loot Directory** (`/loot`) | This season's Mythic+ rotation and current raid tier, boss by boss, with full loot tables. |
-| **Character Lookup** (`/character`) | Type-ahead search over Raider.IO, then a full profile — equipped gear, M+ score, raid progression. |
+| **Character Lookup** (`/character`) | Type-ahead search over Raider.IO, then a full profile — equipped gear, talent build with import string, Mythic+ progression and best runs, raid progression. |
 | **News** (`/news`) | Wowhead retail and in-development feeds, cached locally. |
 | **Sync** (`/sync`) | What is stale, and a button to fix it. |
 
 **Stack:** Next.js 16 (App Router) · TypeScript · Tailwind v4 · Drizzle + SQLite
+
+Every item name links to Wowhead and shows the real in-game tooltip on hover.
 
 ---
 
