@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "eeec5d78-135c-4dea-92f3-f7ff923e0bb3",
+  "id": "87ea281c-c27c-4ff4-a88f-0f0af96d75cb",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "character_cache": {
@@ -135,6 +135,13 @@
         },
         "image_button": {
           "name": "image_button",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "tile_url": {
+          "name": "tile_url",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -378,9 +385,9 @@
           "notNull": true,
           "autoincrement": false
         },
-        "icon": {
-          "name": "icon",
-          "type": "text",
+        "icon_file_id": {
+          "name": "icon_file_id",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false

@@ -210,6 +210,31 @@ Two notes for later steps:
   appear in the emitted CSS until a component actually uses them, which is expected —
   they were verified to resolve correctly at Step 1 and simply have no consumer yet.
 
+## 7b. Game artwork (added at Step 2)
+
+Two CDNs, both verified reachable. `lib/domain/icons.ts` is the only place URLs are built.
+
+| Use | Source | Addressing |
+|---|---|---|
+| Item icons | `render.worldofwarcraft.com/{region}/icons/{56\|18}/{fileDataId}.jpg` | **numeric fileDataId** from `/data/wow/media/item/{id}` |
+| Instance zone art | `render.worldofwarcraft.com/{region}/zones/{name}-small.jpg` | full URL stored from `/data/wow/media/journal-instance/{id}` |
+| Fixed shell icons | `wow.zamimg.com/images/wow/icons/{large\|medium\|small}/{slug}.jpg` | readable slug, e.g. `inv_misc_gear_01` |
+
+- **Blizzard's CDN is primary** for anything data-driven. Wowhead's CDN is used only for
+  the handful of decorative shell icons, where there is no item id to resolve — and
+  Wowhead is credited in the footer.
+- **There is no readable icon slug in the Game Data API.** The `inv_helm_*` names on
+  Wowhead come from elsewhere. Do not plan around having them.
+- Zone art exists **only** in the `-small` variant; the bare filename returns 403.
+- `<WowIcon>` renders a plain `<img>`, not `next/image`: these are 1–3 KB JPEGs already
+  at display size, so the optimizer adds latency and config for no gain.
+- **Missing-icon handling is pure CSS.** The question mark sits as a `background-image`
+  behind the `<img>`; a 404 lets it show through with zero client JavaScript. This
+  matters because loot tables render hundreds of icons at once. Shell icons load
+  `eager` so the fallback does not flash before the real icon arrives.
+- Every slug in `SHELL_ICONS` was confirmed to return 200 before use. Adding one without
+  checking renders a broken tile.
+
 ## 8. Accessibility notes
 
 - Fit score is never colour-only — the number is always present.

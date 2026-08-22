@@ -5,7 +5,7 @@ export default function LootPage() {
     <>
       <PageHeader
         title="Dungeon Loot Directory"
-        lead="This season\u2019s Mythic+ rotation and the current raid tier, boss by boss."
+        lead="This season’s Mythic+ rotation and the current raid tier, boss by boss."
       />
       <EmptyState
         title="No instances yet"

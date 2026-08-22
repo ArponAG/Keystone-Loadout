@@ -24,6 +24,7 @@ name          text  notnull
 type          text  notnull   // 'dungeon' | 'raid'  (from Raidbots `type`)
 expansion_id  integer         // read from data, never hardcoded
 image_button  text            // Raidbots art slug
+tile_url      text            // Blizzard zone art, full URL — see below
 order_index   integer
 in_current_rotation integer   // 0/1 — is this in THIS season's M+ pool
 synced_at     integer notnull // epoch ms
@@ -34,6 +35,11 @@ synced_at     integer notnull // epoch ms
 - `in_current_rotation` rather than `is_current_season`: the probe showed the season
   pool contains dungeons from **four** expansions (Kings' Rest, Ruby Life Pools,
   Temple of Sethraliss are not Midnight). "Current season" is not an expansion filter.
+- `tile_url` stores a **full URL**, not an id or slug, because the zone art filename is
+  derived from the instance name rather than its id — `/data/wow/media/journal-instance/1322`
+  returns `.../zones/altar-of-fangs-small.jpg`. Only the `-small` variant exists; the bare
+  filename returns 403. Guessing the URL from the name is fragile, so we store what the
+  media endpoint gives us.
 
 ### `encounters`
 ```ts
@@ -51,7 +57,7 @@ order_index   integer
 ```ts
 id               integer PK   // Blizzard item id — from entry.item.id, NOT entry.id
 name             text notnull
-icon             text         // from /data/wow/media/item/{id}
+icon_file_id     integer      // numeric fileDataId from /data/wow/media/item/{id}
 quality          text         // 'RARE' | 'EPIC' — string enum, not int
 item_class       integer notnull
 item_sub_class   integer notnull
@@ -73,6 +79,12 @@ synced_at        integer notnull
 - `base_item_level` is named to resist misuse. The probe found Altar of Fangs items
   at ilvl 219 and Blinding Vale items at ilvl 108 — both in the same M+ rotation.
   This number is the journal's base, not the ilvl a keystone awards.
+- **`icon_file_id` is a number, not a slug.** Confirmed at Step 2:
+  `/data/wow/media/item/273796` returns
+  `https://render.worldofwarcraft.com/us/icons/56/7956740.jpg` — Blizzard's CDN
+  addresses icons by fileDataId. The readable `inv_helm_*` names seen on Wowhead and in
+  Raider.IO payloads are **not** exposed by the Game Data API, so they cannot be used
+  here. URL construction lives in `lib/domain/icons.ts`; sizes 56 and 18 both resolve.
 
 ### `item_stats`
 ```ts

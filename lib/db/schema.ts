@@ -18,6 +18,9 @@ export const instances = sqliteTable(
     /** Read from data, never hardcoded. */
     expansionId: integer('expansion_id'),
     imageButton: text('image_button'),
+    /** Blizzard zone art from /data/wow/media/journal-instance/{id}. Stored as a full
+     *  URL because it is not derivable from the id, and only the `-small` variant exists. */
+    tileUrl: text('tile_url'),
     orderIndex: integer('order_index'),
     /** Is this in THIS season's M+ pool? Not an expansion filter — the current
      *  rotation spans four expansions. */
@@ -51,7 +54,10 @@ export const items = sqliteTable(
      *  items[].id is the JournalEncounterItem id and poisons every join. */
     id: integer('id').primaryKey(),
     name: text('name').notNull(),
-    icon: text('icon'),
+    /** Numeric fileDataId from /data/wow/media/item/{id}. Blizzard's CDN addresses
+     *  icons as /icons/{size}/{fileDataId}.jpg — the readable `inv_*` slug seen on
+     *  Wowhead is NOT exposed by the Game Data API. See lib/domain/icons.ts. */
+    iconFileId: integer('icon_file_id'),
     /** String enum: 'RARE' | 'EPIC' | ... — not an integer. */
     quality: text('quality'),
     itemClass: integer('item_class').notNull(),

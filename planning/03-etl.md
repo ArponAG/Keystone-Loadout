@@ -95,8 +95,12 @@ The expensive one. ~400 Blizzard requests.
    `inventory_type.type === 'NON_EQUIP'`.
 5. Write `item_stats` rows preserving `is_negated` verbatim. Do not filter negated
    stats out — see `02-data-model.md` §1.
-6. Icons: `GET /data/wow/media/item/{id}`. This **doubles** the request count.
-   Fetch icons lazily in a second pass, and treat icon failure as non-fatal.
+6. Icons: `GET /data/wow/media/item/{id}` -> `assets[key='icon'].file_data_id`.
+   Store the **numeric fileDataId**, not a URL — `lib/domain/icons.ts` builds
+   `render.worldofwarcraft.com/{region}/icons/{56|18}/{fileDataId}.jpg` from it.
+   There is no readable `inv_*` slug available from this API.
+   This **doubles** the request count, so fetch icons in a second pass and treat
+   failure as non-fatal (a missing icon falls back to the question mark).
 7. Commit the instance's rows in a transaction. Move to the next instance.
 
 **Rate limits** — 200 ms between Blizzard calls (5 req/s against an allowance of 100/s).

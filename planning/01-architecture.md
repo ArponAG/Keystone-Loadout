@@ -73,6 +73,7 @@ app/
 components/
   SiteHeader.tsx             nav + season badge (reads config/season.json)
   SiteFooter.tsx             required attribution + source backlinks
+  WowIcon.tsx                icon tile with question-mark CSS fallback
   ui.tsx                     PageHeader, EmptyState, Banner, Badge
 
 lib/
@@ -85,6 +86,7 @@ lib/
   domain/
     stats.ts                 STAT_MAP, SECONDARIES, primary-set extraction
     slots.ts                 INVENTORY_TYPE -> slot, armor-filter applicability
+    icons.ts                 CDN URL builders, quality colours, outbound links
     filters.ts               armor-type + primary eligibility rules
   scoring/
     score.ts                 fitScore

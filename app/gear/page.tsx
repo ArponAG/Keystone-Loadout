@@ -5,7 +5,7 @@ export default function GearPage() {
     <>
       <PageHeader
         title="Build Gear Finder"
-        lead="Rank this season\u2019s gear by how much of its secondary budget lands on the stats you care about."
+        lead="Rank this season’s gear by how much of its secondary budget lands on the stats you care about."
       />
 
       <div className="mb-6">

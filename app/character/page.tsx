@@ -5,7 +5,7 @@ export default function CharacterPage() {
     <>
       <PageHeader
         title="Character Lookup"
-        lead="Raider.IO profile \u2014 equipped gear, Mythic+ score and raid progression."
+        lead="Raider.IO profile — equipped gear, Mythic+ score and raid progression."
       />
       <EmptyState
         title="Not built yet"

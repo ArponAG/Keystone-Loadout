@@ -20,6 +20,7 @@ CREATE TABLE `instances` (
 	`type` text NOT NULL,
 	`expansion_id` integer,
 	`image_button` text,
+	`tile_url` text,
 	`order_index` integer,
 	`in_current_rotation` integer DEFAULT 0 NOT NULL,
 	`synced_at` integer NOT NULL
@@ -54,7 +55,7 @@ CREATE INDEX `idx_item_stats_item` ON `item_stats` (`item_id`);--> statement-bre
 CREATE TABLE `items` (
 	`id` integer PRIMARY KEY NOT NULL,
 	`name` text NOT NULL,
-	`icon` text,
+	`icon_file_id` integer,
 	`quality` text,
 	`item_class` integer NOT NULL,
 	`item_sub_class` integer NOT NULL,
