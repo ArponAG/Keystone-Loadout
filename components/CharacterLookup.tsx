@@ -1,12 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { CharacterSearch } from '@/components/CharacterSearch';
+import { SavedCharacters } from '@/components/SavedCharacters';
 import { MythicPlusProgression, TalentBuildSection } from '@/components/CharacterSections';
 import { WowIcon } from '@/components/WowIcon';
 import { Banner } from '@/components/ui';
 import { slugIconUrl } from '@/lib/domain/icons';
+import type { SavedCharacter } from '@/app/api/character/saved/route';
 import type { CharacterProfile, MythicPlus, TalentBuild } from '@/lib/raiderio/character';
 
 const REGIONS = ['us', 'eu', 'tw', 'kr'] as const;
@@ -43,6 +45,56 @@ export function CharacterLookup() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<Response | null>(null);
+  const [saved, setSaved] = useState<SavedCharacter[]>([]);
+
+  const refreshSaved = useCallback(async () => {
+    try {
+      const res = await fetch('/api/character/saved');
+      const body = await res.json();
+      setSaved(body.saved ?? []);
+    } catch {
+      // A missing saved list is not worth an error state; the lookup still works.
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshSaved();
+  }, [refreshSaved]);
+
+  const activeKey = data
+    ? `${data.normalised.region}:${data.normalised.realm}:${data.normalised.name}`.toLowerCase()
+    : null;
+  const isSaved = saved.some((c) => c.cacheKey === activeKey);
+
+  async function toggleSave() {
+    if (!data) return;
+
+    if (isSaved && activeKey) {
+      await fetch(`/api/character/saved?key=${encodeURIComponent(activeKey)}`, { method: 'DELETE' });
+    } else {
+      await fetch('/api/character/saved', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...data.normalised,
+          className: data.profile.class,
+          specName: data.profile.active_spec_name,
+          faction: data.profile.faction,
+          thumbnail: data.profile.thumbnail_url,
+          itemLevel: Math.round(data.profile.gear?.item_level_equipped ?? 0),
+          mplusScore: data.mythicPlus ? Math.round(data.mythicPlus.score) : null,
+        }),
+      });
+    }
+    await refreshSaved();
+  }
+
+  async function removeSaved(character: SavedCharacter) {
+    await fetch(`/api/character/saved?key=${encodeURIComponent(character.cacheKey)}`, {
+      method: 'DELETE',
+    });
+    await refreshSaved();
+  }
 
   async function lookup(q: { region: string; realm: string; name: string }) {
     setLoading(true);
@@ -82,6 +134,13 @@ export function CharacterLookup() {
 
   return (
     <>
+      <SavedCharacters
+        saved={saved}
+        activeKey={activeKey}
+        onPick={(c) => void lookup({ region: c.region, realm: c.realm, name: c.name })}
+        onRemove={(c) => void removeSaved(c)}
+      />
+
       <div className="mb-3 rounded-lg border border-line bg-surface p-4">
         <CharacterSearch onPick={onPick} />
       </div>
@@ -146,13 +205,21 @@ export function CharacterLookup() {
       {error ? (
         <Banner variant="error">{error}</Banner>
       ) : data ? (
-        <Profile data={data} />
+        <Profile data={data} isSaved={isSaved} onToggleSave={() => void toggleSave()} />
       ) : null}
     </>
   );
 }
 
-function Profile({ data }: { data: Response }) {
+function Profile({
+  data,
+  isSaved,
+  onToggleSave,
+}: {
+  data: Response;
+  isSaved: boolean;
+  onToggleSave: () => void;
+}) {
   const { profile } = data;
   const scores = profile.mythic_plus_scores_by_season?.[0]?.scores;
   const items = profile.gear?.items ?? {};
@@ -192,9 +259,21 @@ function Profile({ data }: { data: Response }) {
           </p>
         </div>
 
-        <div className="ml-auto flex gap-6">
+        <div className="ml-auto flex items-center gap-6">
           <Stat label="Item level" value={Math.round(profile.gear?.item_level_equipped ?? 0)} />
           <Stat label="M+ score" value={scores?.all != null ? Math.round(scores.all) : '—'} />
+          <button
+            type="button"
+            onClick={onToggleSave}
+            className={`rounded-md border px-3 py-1.5 text-xs transition-colors ${
+              isSaved
+                ? 'border-accent bg-accent-muted/40 text-accent'
+                : 'border-line-strong bg-raised text-ink-soft hover:border-accent hover:text-accent'
+            }`}
+            title={isSaved ? 'Remove from saved characters' : 'Pin this character'}
+          >
+            {isSaved ? '★ Saved' : '☆ Save'}
+          </button>
         </div>
       </div>
 

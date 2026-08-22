@@ -170,3 +170,28 @@ export const syncRuns = sqliteTable(
   },
   (t) => [index('idx_sync_runs_source').on(t.source, t.startedAt)],
 );
+
+/** Characters pinned on the lookup page.
+ *
+ *  ilvl / score / art are snapshotted at save time so the list renders instantly with
+ *  no upstream calls. They are a label, not a source of truth — clicking a saved
+ *  character does a full lookup and refreshes them. */
+export const savedCharacters = sqliteTable(
+  'saved_characters',
+  {
+    /** Same lowercased region:realm:name key used by character_cache. */
+    cacheKey: text('cache_key').primaryKey(),
+    region: text('region').notNull(),
+    realm: text('realm').notNull(),
+    name: text('name').notNull(),
+    className: text('class_name'),
+    specName: text('spec_name'),
+    faction: text('faction'),
+    thumbnail: text('thumbnail'),
+    itemLevel: integer('item_level'),
+    mplusScore: integer('mplus_score'),
+    savedAt: integer('saved_at').notNull(),
+    refreshedAt: integer('refreshed_at'),
+  },
+  (t) => [index('idx_saved_characters_saved').on(t.savedAt)],
+);
