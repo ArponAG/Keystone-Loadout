@@ -7,4 +7,4 @@
  */
 import 'server-only';
 
-export { DB_PATH, db, dbExists, schema } from './client';
+export { DB_PATH, db, dbExists, dbReady, schema } from './client';

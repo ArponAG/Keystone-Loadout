@@ -2,7 +2,7 @@ import { desc } from 'drizzle-orm';
 
 import { SyncAutoRefresh, SyncButton } from '@/components/SyncControls';
 import { Banner, EmptyState, PageHeader } from '@/components/ui';
-import { db, dbExists, schema } from '@/lib/db';
+import { db, dbReady, schema } from '@/lib/db';
 import { SYNC_SOURCES } from '@/lib/sync/registry';
 
 export const dynamic = 'force-dynamic';
@@ -34,7 +34,7 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 export default async function SyncPage() {
-  if (!dbExists()) {
+  if (!dbReady()) {
     return (
       <>
         <PageHeader title="Sync" />

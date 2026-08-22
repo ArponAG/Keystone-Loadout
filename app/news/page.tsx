@@ -2,7 +2,7 @@ import { desc, eq } from 'drizzle-orm';
 import Link from 'next/link';
 
 import { Banner, EmptyState, PageHeader } from '@/components/ui';
-import { db, dbExists, schema } from '@/lib/db';
+import { db, dbReady, schema } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,7 +35,7 @@ export default async function NewsPage({
 
   const header = <PageHeader title="News" lead="Wowhead retail and in-development feeds." />;
 
-  if (!dbExists()) {
+  if (!dbReady()) {
     return (
       <>
         {header}

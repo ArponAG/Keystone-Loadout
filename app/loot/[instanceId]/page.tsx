@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 
 import { ItemIcon, ItemName, StatLine, Tag } from '@/components/ItemBits';
 import { EmptyState, PageHeader } from '@/components/ui';
-import { db, dbExists, schema } from '@/lib/db';
+import { db, dbReady, schema } from '@/lib/db';
 import { groupStatsByItem, readStats, type RawStat } from '@/lib/domain/items';
 import { ARMOR_SUBCLASS, SLOT_LABEL, type Slot } from '@/lib/domain/slots';
 
@@ -32,7 +32,7 @@ export default async function InstancePage({
   const { instanceId } = await params;
   const id = Number(instanceId);
 
-  if (!Number.isInteger(id) || !dbExists()) notFound();
+  if (!Number.isInteger(id) || !dbReady()) notFound();
 
   const [instance] = await db
     .select()

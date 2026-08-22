@@ -78,7 +78,8 @@ components/
 
 lib/
   db/
-    client.ts                connection + drizzle instance (NO server-only guard)
+    client.ts                connection + drizzle instance (NO server-only guard);
+                             dbReady() checks the SCHEMA, not the file — see below
     index.ts                 server-only re-export of client.ts — app code imports this
     schema.ts                table definitions
     sync-run.ts              sync_runs lifecycle + stale-'running' reaping
@@ -167,6 +168,22 @@ drizzle.config.ts            schema path + sqlite dialect
 | Wowhead | feed declares `<ttl>30</ttl>` | poll at most every 30 min (brief said 15 — the feed says 30) |
 
 All outbound requests send `User-Agent: KeystoneLoadout/0.1 (personal project)`.
+
+## 5b. First run
+
+`dbReady()` asks the schema whether table `instances` exists; it deliberately does not
+ask the filesystem whether `data/app.db` exists.
+
+That distinction was a real bug. `better-sqlite3` **creates** the database on connect,
+so a fresh clone ended up holding a 4 KB file with zero tables. `existsSync` returned
+true, every carefully written "run the migration" empty state was skipped, and four
+pages served a raw 500 reading `no such table: instances` — the first thing anyone
+cloning the repo would see.
+
+The check is memoised only once true, so the app starts working the moment migrations
+run, with no restart. API routes return 503 with the command to run, and `app/error.tsx`
+is a last-resort boundary that recognises schema errors and prints the fix instead of a
+stack trace.
 
 ## 6. Failure posture
 

@@ -14,10 +14,39 @@ import * as schema from './schema';
 
 export const DB_PATH = path.join(process.cwd(), 'data', 'app.db');
 
-/** True when the DB file has not been created yet. Lets the UI show the
- *  "run the migration" empty state instead of a stack trace on a fresh clone. */
+/**
+ * True once the schema actually exists.
+ *
+ * Checking for the FILE is not enough and was a real first-run bug: better-sqlite3
+ * creates the database on connect, so a fresh clone ended up with a 4 KB file
+ * containing zero tables. `existsSync` happily returned true, every "run the migration"
+ * empty state was skipped, and four pages returned a raw 500 with "no such table" —
+ * which is precisely the experience someone cloning the repo would hit first.
+ *
+ * So ask the schema, not the filesystem. The answer is memoised only once it is true;
+ * a false result is rechecked, so the app starts working the moment migrations run,
+ * with no restart.
+ */
+let schemaReady = false;
+
+export function dbReady(): boolean {
+  if (schemaReady) return true;
+  if (!existsSync(DB_PATH)) return false;
+
+  try {
+    const row = sqlite
+      .prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name='instances'")
+      .get() as { n: number };
+    schemaReady = row.n > 0;
+  } catch {
+    schemaReady = false;
+  }
+  return schemaReady;
+}
+
+/** @deprecated Use dbReady() — the file existing does not mean the schema does. */
 export function dbExists(): boolean {
-  return existsSync(DB_PATH);
+  return dbReady();
 }
 
 // Next's dev server re-evaluates modules on hot reload; without this the process

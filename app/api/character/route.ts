@@ -1,7 +1,7 @@
 import { asc } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 
-import { db, schema } from '@/lib/db';
+import { db, dbReady, schema } from '@/lib/db';
 import { auditGear, typicalKeyLevel } from '@/lib/domain/gear-audit';
 import { vaultRewardFor } from '@/lib/domain/rewards';
 import {
@@ -27,6 +27,13 @@ import {
 const REGIONS = new Set(['us', 'eu', 'tw', 'kr', 'cn']);
 
 export async function GET(request: Request) {
+  if (!dbReady()) {
+    return NextResponse.json(
+      { error: 'The database has not been created yet. Run: npx drizzle-kit migrate' },
+      { status: 503 },
+    );
+  }
+
   const params = new URL(request.url).searchParams;
 
   const region = (params.get('region') ?? 'us').toLowerCase();

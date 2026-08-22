@@ -56,6 +56,9 @@ BLIZZARD_REGION=us
 `.env*` and `data/*.db` are gitignored. The secret is read only by
 `lib/blizzard/auth.ts`, which only ETL scripts import — it never reaches the browser.
 
+> **Run the migration before `npm run dev`.** The app tells you if you forget, but the
+> order matters.
+
 ### 3. Install and create the database
 
 ```bash

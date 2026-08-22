@@ -5,7 +5,7 @@ import { DataFreshness } from '@/components/DataFreshness';
 import { FitScoreBadge } from '@/components/FitScoreBadge';
 import { ItemIcon, ItemName, StatLine } from '@/components/ItemBits';
 import { Banner, EmptyState, PageHeader } from '@/components/ui';
-import { db, dbExists, schema } from '@/lib/db';
+import { db, dbReady, schema } from '@/lib/db';
 import { readFreshness, readLootCoverage } from '@/lib/db/freshness';
 import { parseBuild, parseScope, type SearchParams } from '@/lib/domain/build';
 import { checkEligibility } from '@/lib/domain/filters';
@@ -77,7 +77,7 @@ export default async function GearPage({
     </div>
   );
 
-  if (!dbExists()) {
+  if (!dbReady()) {
     return (
       <>
         {header}

@@ -3,7 +3,7 @@ import Link from 'next/link';
 
 import { Tag } from '@/components/ItemBits';
 import { EmptyState, PageHeader } from '@/components/ui';
-import { db, dbExists, schema } from '@/lib/db';
+import { db, dbReady, schema } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,7 +69,7 @@ function Section({ title, instances }: { title: string; instances: InstanceCardD
 }
 
 export default async function LootPage() {
-  if (!dbExists()) {
+  if (!dbReady()) {
     return (
       <>
         <PageHeader title="Dungeon Loot Directory" />
