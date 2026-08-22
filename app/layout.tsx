@@ -3,6 +3,7 @@ import Script from 'next/script';
 
 import { SiteFooter } from '@/components/SiteFooter';
 import { SiteHeader } from '@/components/SiteHeader';
+import { TooltipPosition } from '@/components/TooltipPosition';
 
 import './globals.css';
 
@@ -18,6 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SiteHeader />
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">{children}</main>
         <SiteFooter />
+        <TooltipPosition />
 
         {/*
           Wowhead's tooltip embed. This is the one third-party script in the app, and

@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 import { WowIcon } from '@/components/WowIcon';
 import { slugIconUrl } from '@/lib/domain/icons';
-import type { MythicPlus, TalentBuild } from '@/lib/raiderio/character';
+import type { MythicPlus, TalentBuild, TalentPick, TalentTree } from '@/lib/raiderio/character';
 
 // ------------------------------------------------------------ Mythic+ card
 
@@ -131,9 +131,11 @@ export function MythicPlusProgression({
 export function TalentBuildSection({ build, spec }: { build: TalentBuild; spec: string }) {
   const [copied, setCopied] = useState(false);
 
-  // subTreeId 0 is the class/spec tree; anything else is a hero talent tree.
-  const main = build.picks.filter((p) => p.subTreeId === 0);
-  const hero = build.picks.filter((p) => p.subTreeId !== 0);
+  const columns: { key: TalentTree; label: string }[] = [
+    { key: 'class', label: 'Class Talents' },
+    { key: 'hero', label: 'Hero Talents' },
+    { key: 'spec', label: 'Spec Talents' },
+  ];
 
   async function copy() {
     try {
@@ -158,13 +160,30 @@ export function TalentBuildSection({ build, spec }: { build: TalentBuild; spec: 
           className="ml-auto rounded-md border border-line-strong bg-raised px-3 py-1.5 text-xs text-ink-soft transition-colors hover:border-accent hover:text-accent"
           title="Copy the in-game import string"
         >
-          {copied ? 'Copied ✓' : 'Copy import string'}
+          {copied ? 'Copied ✓' : 'Copy'}
         </button>
       </div>
 
-      <div className="space-y-4">
-        <TalentGroup title="Class & Spec" picks={main} />
-        {hero.length > 0 ? <TalentGroup title="Hero talents" picks={hero} /> : null}
+      <div className="grid grid-cols-3 divide-x divide-line rounded-lg border border-line bg-surface">
+        {columns.map((column) => {
+          const picks = build.picks.filter((p) => p.tree === column.key);
+          return (
+            <div key={column.key} className="p-3">
+              <h4 className="mb-3 text-center text-xs tracking-wide text-ink-faint uppercase">
+                {column.label}
+              </h4>
+              {picks.length === 0 ? (
+                <p className="text-center text-xs text-ink-faint">—</p>
+              ) : (
+                <div className="flex flex-wrap justify-center gap-1.5">
+                  {picks.map((pick) => (
+                    <TalentIcon key={`${pick.name}-${pick.row}-${pick.col}`} pick={pick} />
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       <details className="mt-3 rounded-lg border border-line bg-surface">
@@ -179,31 +198,46 @@ export function TalentBuildSection({ build, spec }: { build: TalentBuild; spec: 
   );
 }
 
-function TalentGroup({ title, picks }: { title: string; picks: TalentBuild['picks'] }) {
-  if (picks.length === 0) return null;
+/**
+ * Icon only, like the in-game tree. The name lives in the tooltip: linking to
+ * wowhead.com/spell= means the Wowhead embed gives a real talent tooltip rather than a
+ * plain title attribute.
+ *
+ * Partially-ranked talents get a dimmer border, so 1/2 reads differently from 2/2 at a
+ * glance without having to read the badge.
+ */
+function TalentIcon({ pick }: { pick: TalentPick }) {
+  const maxed = pick.rank >= pick.maxRanks;
+
+  const icon = (
+    <span className="relative block">
+      <WowIcon
+        src={slugIconUrl(pick.icon, 'medium')}
+        size={34}
+        rounded="sm"
+        alt={pick.name}
+        className={maxed ? 'ring-1 ring-accent/70' : 'ring-1 ring-line-strong opacity-80'}
+      />
+      {pick.maxRanks > 1 ? (
+        <span className="tabular absolute -right-1 -bottom-1 rounded-sm bg-base px-1 text-[10px] leading-tight text-accent ring-1 ring-line-strong">
+          {pick.rank}/{pick.maxRanks}
+        </span>
+      ) : null}
+    </span>
+  );
+
+  if (!pick.spellId) {
+    return <span title={pick.name}>{icon}</span>;
+  }
 
   return (
-    <div className="rounded-lg border border-line bg-surface p-3">
-      <h4 className="mb-2 text-xs tracking-wide text-ink-faint uppercase">
-        {title} <span className="text-ink-soft">({picks.length})</span>
-      </h4>
-      <div className="flex flex-wrap gap-1.5">
-        {picks.map((pick) => (
-          <span
-            key={`${pick.name}-${pick.row}`}
-            className="flex items-center gap-1.5 rounded-md bg-raised py-1 pr-2 pl-1"
-            title={`${pick.name} — rank ${pick.rank}/${pick.maxRanks}`}
-          >
-            <WowIcon src={slugIconUrl(pick.icon, 'medium')} size={22} rounded="sm" />
-            <span className="text-xs text-ink-soft">{pick.name}</span>
-            {pick.maxRanks > 1 ? (
-              <span className="tabular text-xs text-accent">
-                {pick.rank}/{pick.maxRanks}
-              </span>
-            ) : null}
-          </span>
-        ))}
-      </div>
-    </div>
+    <a
+      href={`https://www.wowhead.com/spell=${pick.spellId}`}
+      target="_blank"
+      rel="noreferrer"
+      title={pick.name}
+    >
+      {icon}
+    </a>
   );
 }

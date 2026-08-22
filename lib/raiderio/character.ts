@@ -33,14 +33,18 @@ export type GearItem = {
 };
 
 /** One chosen talent, trimmed from Raider.IO's full node payload (31 KB -> 6 KB). */
+export type TalentTree = 'class' | 'hero' | 'spec';
+
 export type TalentPick = {
   name: string;
   icon: string;
+  /** Wowhead spell id, so the icon can carry a real talent tooltip. */
+  spellId: number | null;
   rank: number;
   maxRanks: number;
-  /** 0 = class/spec tree; anything else is a hero talent tree. */
-  subTreeId: number;
+  tree: TalentTree;
   row: number;
+  col: number;
 };
 
 export type TalentBuild = {
@@ -109,7 +113,8 @@ export type CharacterProfile = {
       node: {
         subTreeId: number;
         row: number;
-        entries: { maxRanks: number; spell?: { name?: string; icon?: string } }[];
+        posX: number;
+        entries: { maxRanks: number; spell?: { id?: number; name?: string; icon?: string } }[];
       };
       entryIndex: number;
       rank: number;
@@ -256,15 +261,37 @@ export function shapeTalents(profile: CharacterProfile): TalentBuild | null {
   const raw = profile.talentLoadout;
   if (!raw?.loadout) return null;
 
-  const picks: TalentPick[] = raw.loadout
-    .filter((n) => {
-      if (n.grantedNode) return false;
-      // Drop structural nodes. The hero-tree selector is a node with no spell on any
-      // entry — it records which hero tree was chosen, not a talent that was taken,
-      // and would otherwise render as an "Unknown" chip.
-      const entry = n.node.entries[n.entryIndex] ?? n.node.entries[0];
-      return Boolean(entry?.spell?.name);
-    })
+  const chosen = raw.loadout.filter((n) => {
+    if (n.grantedNode) return false;
+    // Drop structural nodes. The hero-tree selector is a node with no spell on any
+    // entry — it records which hero tree was chosen, not a talent that was taken,
+    // and would otherwise render as an "Unknown" chip.
+    const entry = n.node.entries[n.entryIndex] ?? n.node.entries[0];
+    return Boolean(entry?.spell?.name);
+  });
+
+  // Class and spec talents share subTreeId 0, and nothing in the payload labels which
+  // is which. The game lays them out side by side, so posX does separate them: columns
+  // sit ~600 apart within a tree, and there is a single large gap between the two.
+  // Finding that gap works for any class rather than hardcoding a threshold.
+  const mainX = [...new Set(chosen.filter((n) => n.node.subTreeId === 0).map((n) => n.node.posX))].sort(
+    (a, b) => a - b,
+  );
+
+  let splitX = Infinity;
+  let widest = 0;
+  for (let i = 1; i < mainX.length; i += 1) {
+    const gap = mainX[i] - mainX[i - 1];
+    if (gap > widest) {
+      widest = gap;
+      splitX = (mainX[i] + mainX[i - 1]) / 2;
+    }
+  }
+  // Only trust the split when the gap is clearly structural, not just a sparse column.
+  const typicalGap = mainX.length > 1 ? (mainX[mainX.length - 1] - mainX[0]) / (mainX.length - 1) : 0;
+  if (widest < typicalGap * 2) splitX = Infinity;
+
+  const picks: TalentPick[] = chosen
     .map((n) => {
       const entry = n.node.entries[n.entryIndex] ?? n.node.entries[0];
 
@@ -273,16 +300,21 @@ export function shapeTalents(profile: CharacterProfile): TalentBuild | null {
       // Taking the chosen entry's maxRanks alone would render an impossible "4/1".
       const maxRanks = Math.max(entry?.maxRanks ?? 1, n.rank);
 
+      const tree: TalentTree =
+        n.node.subTreeId !== 0 ? 'hero' : n.node.posX > splitX ? 'spec' : 'class';
+
       return {
         name: entry?.spell?.name ?? 'Unknown',
         icon: entry?.spell?.icon ?? 'inv_misc_questionmark',
+        spellId: entry?.spell?.id ?? null,
         rank: n.rank,
         maxRanks,
-        subTreeId: n.node.subTreeId,
+        tree,
         row: n.node.row,
+        col: n.node.posX,
       };
     })
-    .sort((a, b) => a.row - b.row || a.name.localeCompare(b.name));
+    .sort((a, b) => a.row - b.row || a.col - b.col);
 
   return { specId: raw.loadout_spec_id, importString: raw.loadout_text, picks };
 }
