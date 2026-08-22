@@ -1,10 +1,12 @@
 import { and, eq, inArray } from 'drizzle-orm';
 
 import { BuildForm } from '@/components/BuildForm';
+import { DataFreshness } from '@/components/DataFreshness';
 import { FitScoreBadge } from '@/components/FitScoreBadge';
 import { ItemIcon, ItemName, StatLine } from '@/components/ItemBits';
 import { Banner, EmptyState, PageHeader } from '@/components/ui';
 import { db, dbExists, schema } from '@/lib/db';
+import { readFreshness, readLootCoverage } from '@/lib/db/freshness';
 import { parseBuild, parseScope, type SearchParams } from '@/lib/domain/build';
 import { checkEligibility } from '@/lib/domain/filters';
 import { raidbotsUrl } from '@/lib/domain/icons';
@@ -127,6 +129,8 @@ export default async function GearPage({
     );
   }
 
+  const [freshness, coverage] = await Promise.all([readFreshness('loot'), readLootCoverage()]);
+
   const itemIds = [...new Set(rows.map((r) => r.id))];
   const statRows: (RawStat & { itemId: number })[] = await db
     .select({
@@ -189,6 +193,8 @@ export default async function GearPage({
     <>
       {header}
       {disclaimer}
+
+      <DataFreshness freshness={freshness} coverage={coverage} />
 
       <div className="mb-6">
         <BuildForm build={build} scope={scope} />
