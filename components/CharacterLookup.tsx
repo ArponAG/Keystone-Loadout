@@ -5,11 +5,15 @@ import { useCallback, useEffect, useState } from 'react';
 import { CharacterSearch } from '@/components/CharacterSearch';
 import { SavedCharacters } from '@/components/SavedCharacters';
 import { MythicPlusProgression, TalentBuildSection } from '@/components/CharacterSections';
+import { NextUpgrades } from '@/components/NextUpgrades';
 import { WowIcon } from '@/components/WowIcon';
 import { Banner } from '@/components/ui';
 import { slugIconUrl } from '@/lib/domain/icons';
 import type { SavedCharacter } from '@/app/api/character/saved/route';
 import type { GearAudit, SlotAudit } from '@/lib/domain/gear-audit';
+import type { Recommendations } from '@/lib/domain/recommend';
+import type { SecondaryKey } from '@/lib/domain/stats';
+import type { ResolvedBuild } from '@/lib/raiderio/recommend-for-character';
 import type { CharacterProfile, MythicPlus, TalentBuild } from '@/lib/raiderio/character';
 
 const REGIONS = ['us', 'eu', 'tw', 'kr'] as const;
@@ -28,6 +32,8 @@ type Response = {
   talents: TalentBuild | null;
   mythicPlus: MythicPlus | null;
   audit: GearAudit;
+  build: ResolvedBuild;
+  recommendations: Recommendations | null;
   cachedAt: number;
   stale: boolean;
   normalised: { region: string; realm: string; name: string };
@@ -48,6 +54,8 @@ export function CharacterLookup() {
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<Response | null>(null);
   const [saved, setSaved] = useState<SavedCharacter[]>([]);
+  const [order, setOrder] = useState<SecondaryKey[]>(['haste', 'crit', 'mastery', 'vers']);
+  const [lastQuery, setLastQuery] = useState<{ region: string; realm: string; name: string } | null>(null);
 
   const refreshSaved = useCallback(async () => {
     try {
@@ -98,12 +106,16 @@ export function CharacterLookup() {
     await refreshSaved();
   }
 
-  async function lookup(q: { region: string; realm: string; name: string }) {
+  async function lookup(
+    q: { region: string; realm: string; name: string },
+    nextOrder?: SecondaryKey[],
+  ) {
     setLoading(true);
     setError(null);
+    setLastQuery(q);
 
     try {
-      const query = new URLSearchParams(q);
+      const query = new URLSearchParams({ ...q, order: (nextOrder ?? order).join(',') });
       const res = await fetch(`/api/character?${query}`);
       const body = await res.json();
 
@@ -207,7 +219,16 @@ export function CharacterLookup() {
       {error ? (
         <Banner variant="error">{error}</Banner>
       ) : data ? (
-        <Profile data={data} isSaved={isSaved} onToggleSave={() => void toggleSave()} />
+        <Profile
+          data={data}
+          isSaved={isSaved}
+          onToggleSave={() => void toggleSave()}
+          order={order}
+          onReorder={(next) => {
+            setOrder(next);
+            if (lastQuery) void lookup(lastQuery, next);
+          }}
+        />
       ) : null}
     </>
   );
@@ -217,10 +238,14 @@ function Profile({
   data,
   isSaved,
   onToggleSave,
+  order,
+  onReorder,
 }: {
   data: Response;
   isSaved: boolean;
   onToggleSave: () => void;
+  order: SecondaryKey[];
+  onReorder: (next: SecondaryKey[]) => void;
 }) {
   const { profile } = data;
   const scores = profile.mythic_plus_scores_by_season?.[0]?.scores;
@@ -349,6 +374,15 @@ function Profile({
           })}
         </div>
       </section>
+
+      {data.recommendations ? (
+        <NextUpgrades
+          recommendations={data.recommendations}
+          build={data.build}
+          order={order}
+          onReorder={onReorder}
+        />
+      ) : null}
 
       {data.mythicPlus ? (
         <MythicPlusProgression mplus={data.mythicPlus} role={profile.active_spec_role} />

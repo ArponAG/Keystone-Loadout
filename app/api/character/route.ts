@@ -4,6 +4,10 @@ import { NextResponse } from 'next/server';
 import { db, schema } from '@/lib/db';
 import { auditGear, typicalKeyLevel } from '@/lib/domain/gear-audit';
 import { vaultRewardFor } from '@/lib/domain/rewards';
+import {
+  recommendForCharacter,
+  resolveBuild,
+} from '@/lib/raiderio/recommend-for-character';
 
 import {
   lookupCharacter,
@@ -76,9 +80,23 @@ export async function GET(request: Request) {
       : null,
   );
 
+  const resolved = await resolveBuild(result.profile, result.profile.talentLoadout?.loadout_spec_id ?? null);
+
+  // Stat priority is the one thing no API knows — it is sim output. Default to a
+  // neutral order so a new player gets an answer without configuring anything, and
+  // let the UI override it. See planning/05-ui.md.
+  const order = (params.get('order') ?? '').split(',').filter(Boolean);
+  const secondaryOrder = (
+    order.length === 4 ? order : ['haste', 'crit', 'mastery', 'vers']
+  ) as unknown as Parameters<typeof recommendForCharacter>[2];
+
+  const recommendations = await recommendForCharacter(audit, resolved, secondaryOrder);
+
   return NextResponse.json(
     {
       profile,
+      build: resolved,
+      recommendations,
       // Shaped server-side: Raider.IO's raw talent payload is 31 KB of tree-node data
       // the browser has no use for.
       talents: shapeTalents(result.profile),

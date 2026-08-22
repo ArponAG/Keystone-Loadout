@@ -264,6 +264,56 @@ async function run() {
       ctx.warn(`Reward levels unavailable: ${String(e)}`);
     }
 
+    // --- 7. Playable specialisations --------------------------------------
+    // Resolves spec -> primary stat for the character page's recommendations.
+    // Static game data; it only changes on a patch. Non-fatal.
+    try {
+      ctx.log('Fetching playable specialisations...');
+      const index = await blizzOrNull<{ character_specializations?: { id: number }[] }>(
+        '/data/wow/playable-specialization/index',
+      );
+      const specIds = (index?.character_specializations ?? []).map((s) => s.id);
+
+      const specRows: (typeof schema.specs.$inferInsert)[] = [];
+      for (const id of specIds) {
+        const spec = await blizzOrNull<{
+          id: number;
+          name: string;
+          playable_class?: { id: number; name: string };
+          role?: { type: string };
+          primary_stat_type?: { type: string };
+        }>(`/data/wow/playable-specialization/${id}`);
+
+        if (!spec?.playable_class) continue;
+        specRows.push({
+          id: spec.id,
+          name: spec.name,
+          classId: spec.playable_class.id,
+          className: spec.playable_class.name,
+          role: spec.role?.type ?? null,
+          primaryStat: spec.primary_stat_type?.type ?? null,
+          syncedAt,
+        });
+      }
+
+      if (specRows.length === 0) {
+        ctx.warn('No specialisations returned — gear recommendations will be unavailable.');
+      } else {
+        db.transaction((tx) => {
+          for (const row of specRows) {
+            tx.insert(schema.specs)
+              .values(row)
+              .onConflictDoUpdate({ target: schema.specs.id, set: row })
+              .run();
+          }
+        });
+        const withStat = specRows.filter((r) => r.primaryStat).length;
+        ctx.log(`${specRows.length} specialisations (${withStat} with a primary stat).`);
+      }
+    } catch (e) {
+      ctx.warn(`Specialisations unavailable: ${String(e)}`);
+    }
+
     ctx.setRecordCount(real.length);
     ctx.log(`Wrote ${real.length} instances and ${encounterCount} encounters.`);
     ctx.log(`In current rotation: ${rotationIds.size}.`);

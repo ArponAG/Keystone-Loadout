@@ -210,3 +210,22 @@ export const keystoneRewards = sqliteTable('keystone_rewards', {
   activityTierId: integer('activity_tier_id').notNull(),
   syncedAt: integer('synced_at').notNull(),
 });
+
+/** Playable specialisations, synced from Blizzard.
+ *
+ *  Exists so the character page can resolve a spec to its primary stat from DATA
+ *  rather than a hardcoded map. That distinction is not pedantry: Midnight's Devourer
+ *  Demon Hunter uses Intellect, so the obvious "Demon Hunter = Agility" map would be
+ *  silently wrong and would recommend the wrong half of every loot table. */
+export const specs = sqliteTable('specs', {
+  /** Blizzard specialization id — the same id Raider.IO returns as loadout_spec_id. */
+  id: integer('id').primaryKey(),
+  name: text('name').notNull(),
+  classId: integer('class_id').notNull(),
+  className: text('class_name').notNull(),
+  /** 'DAMAGE' | 'HEALER' | 'TANK' */
+  role: text('role'),
+  /** 'STRENGTH' | 'AGILITY' | 'INTELLECT' — verbatim from primary_stat_type.type. */
+  primaryStat: text('primary_stat'),
+  syncedAt: integer('synced_at').notNull(),
+});

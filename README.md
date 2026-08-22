@@ -7,7 +7,7 @@ SQLite database that you sync on demand.
 |---|---|
 | **Build Gear Finder** (`/gear`) | Pick armor type, primary stat and rank the four secondaries. Get gear per slot, ranked by how well each item's secondary budget matches your ranking. |
 | **Dungeon Loot Directory** (`/loot`) | This season's Mythic+ rotation and current raid tier, boss by boss, with full loot tables. |
-| **Character Lookup** (`/character`) | Type-ahead search over Raider.IO, then a full profile — equipped gear, talent build with import string, Mythic+ progression and best runs, raid progression. |
+| **Character Lookup** (`/character`) | Type-ahead search, saved characters, then a full profile — equipped gear with weak-slot analysis, **what to get next and which dungeon drops it**, talent build, Mythic+ progression, raid progression. |
 | **News** (`/news`) | Wowhead retail and in-development feeds, cached locally. |
 | **Sync** (`/sync`) | What is stale, and a button to fix it. |
 
@@ -91,7 +91,7 @@ npm run dev
 | Command | What it does |
 |---|---|
 | `npm run dev` | Dev server on :3000 |
-| `npm test` | Unit tests (66) — scoring, filters, URL parsing, Raider.IO shaping, gear audit |
+| `npm test` | Unit tests (75) — scoring, filters, URL parsing, Raider.IO shaping, gear audit, recommendations |
 | `npm run verify` | Assumption tripwire — exits non-zero on API drift |
 | `npm run sync:safe` | `verify` then `sync:all` — the one to use |
 | `npm run sync:all` | instances → loot → news |

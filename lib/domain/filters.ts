@@ -77,16 +77,25 @@ export function matchesPrimary(stats: RawStat[], primary: PrimaryKey): boolean {
   return primaries.length === 0 || primaries.includes(primary);
 }
 
+/**
+ * `skipArmor` / `skipPrimary` exist for the character page, where each half of the
+ * build is resolved independently and either may fail. Skipping a filter WIDENS the
+ * results, which is the honest failure mode — showing a plate user every cloth item is
+ * obvious to them, whereas showing nothing looks like the app is broken.
+ */
+export type EligibilityOptions = { skipArmor?: boolean; skipPrimary?: boolean };
+
 export function checkEligibility(
   item: FilterableItem,
   stats: RawStat[],
   build: Build,
+  options: EligibilityOptions = {},
 ): Eligibility {
   if (!isGear(item)) return { eligible: false, reason: 'not-gear' };
-  if (!matchesArmorType(item, build.armorType)) {
+  if (!options.skipArmor && !matchesArmorType(item, build.armorType)) {
     return { eligible: false, reason: 'wrong-armor-type' };
   }
-  if (!matchesPrimary(stats, build.primary)) {
+  if (!options.skipPrimary && !matchesPrimary(stats, build.primary)) {
     return { eligible: false, reason: 'wrong-primary' };
   }
   return ELIGIBLE;
