@@ -131,6 +131,26 @@ probe exposed — some items returned scaled values (`STAMINA=565`) and others b
 values (`STAMINA=11`). Normalising by `secondaryTotal` cancels the scale out. This is
 the main reason to prefer a ratio over raw weighted sums.
 
+### 5.1 Integer arithmetic (added at Step 6)
+
+The implementation accumulates in **integers scaled by 100**, not floats. This is not
+premature precision-fiddling — the naive float version gets a documented example wrong:
+
+```
+7 × 0.7            = 4.8999999999999995   (not 4.9)
+weighted           = 17.9                 (displays fine)
+weighted × 100     = 1789.9999999999998   (does not)
+17.9 / 20          = 0.8949999999999999   (true value: exactly 0.895)
+Math.round(…× 100) = 89                   (should be 90)
+```
+
+Item C below is exactly that case. Stat amounts are integers and `RANK_WEIGHTS` are
+2-decimal values, so scaling the weights to `[100, 70, 45, 25]` makes every
+intermediate exact: `7×70 + 13×100 = 1790`, `1790 / 20 = 89.5 → 90`.
+
+**Constraint this creates:** keep `RANK_WEIGHTS` to at most two decimal places. A third
+decimal would be silently truncated by the `Math.round(w * 100)` scaling.
+
 ## 6. Worked by hand — three real probe items
 
 **Build:** cloth / intellect / `[haste, crit, mastery, vers]`

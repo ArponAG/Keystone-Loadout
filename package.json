@@ -11,7 +11,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "sync:instances": "tsx scripts/sync-instances.ts",
-    "sync:loot": "tsx scripts/sync-loot.ts"
+    "sync:loot": "tsx scripts/sync-loot.ts",
+    "test": "tsx --test lib/**/*.test.ts"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",
