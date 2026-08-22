@@ -21,7 +21,22 @@ export const STAT_MAP = {
   CRIT_RATING: { kind: 'secondary', key: 'crit' },
   MASTERY_RATING: { kind: 'secondary', key: 'mastery' },
   VERSATILITY: { kind: 'secondary', key: 'vers' },
+
+  // Leech. Found on raid gear only, which is why the dungeon-only probe missed it.
+  // TERTIARY, not secondary: it is a bonus roll on top of the item's secondary budget
+  // and must never enter the fitScore denominator. See planning/04-scoring.md §5.
+  COMBAT_RATING_LIFESTEAL: { kind: 'tertiary', key: 'leech' },
 } as const satisfies Record<string, { kind: StatKind; key: string }>;
+
+/**
+ * WoW has other tertiaries — Avoidance, Speed, Indestructible — that have not yet
+ * appeared in synced data, so their exact enum spellings are unverified and are
+ * deliberately NOT guessed here. If one shows up, sync:loot logs a warning naming it
+ * and marks the run 'partial'; add it above as `tertiary` and re-run.
+ *
+ * An unknown stat is already safe by construction: `toSecondaryKey` returns null for
+ * anything not in STAT_MAP, so a new stat can never silently inflate a fit score.
+ */
 
 export type BlizzardStatKey = keyof typeof STAT_MAP;
 

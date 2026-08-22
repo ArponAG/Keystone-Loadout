@@ -79,15 +79,34 @@ Stored as TEXT.
 ### C1. Combined-primary enums do not exist
 
 The brief's §4.3 predicted `AGI_STR_INT`, `AGI_STR`, `AGI_INT`, `STR_INT`. **None of
-these appeared in ~90 sampled items.** The complete observed set is:
-
-```
-AGILITY  CRIT_RATING  HASTE_RATING  INTELLECT
-MASTERY_RATING  STAMINA  STRENGTH  VERSATILITY
-```
+these appeared** in ~90 sampled items, nor in the 551 items later synced.
 
 Note also `VERSATILITY` carries **no** `_RATING` suffix, unlike the other three
 secondaries — the brief guessed right on this one but it was worth verifying.
+
+> **Correction to this document (Step 4).** An earlier revision claimed the "complete
+> observed set" was eight strings. That was wrong — it was the complete set *in the
+> probe's dungeon sample*. Syncing the raids surfaced a ninth:
+>
+> ```
+> AGILITY  CRIT_RATING  HASTE_RATING  INTELLECT  MASTERY_RATING
+> STAMINA  STRENGTH  VERSATILITY  COMBAT_RATING_LIFESTEAL
+> ```
+>
+> `COMBAT_RATING_LIFESTEAL` is **Leech**, and it is a **tertiary**, not a secondary — a
+> bonus roll on top of the item's secondary budget. Treating it as a secondary would
+> corrupt every `fitScore` denominator on the four raid items that carry it.
+>
+> The lesson generalises: the probe sampled dungeons only, so "complete" meant
+> "complete for dungeons". WoW also has Avoidance, Speed and Indestructible tertiaries
+> that still have not appeared; their enum spellings remain unverified and are
+> deliberately **not** guessed in `STAT_MAP`.
+>
+> This is what the loud-but-non-fatal unknown-stat path is for: `sync:loot` named the
+> stat, named the four items, and marked the run `partial` rather than either crashing a
+> 7-minute sync or silently swallowing it. Unknown stats are also safe by construction —
+> `toSecondaryKey` returns null for anything outside `STAT_MAP`, so a new stat can never
+> silently inflate a score.
 
 ### C2. Flexible-primary items work through `is_negated` — and this is the single most consequential correction
 

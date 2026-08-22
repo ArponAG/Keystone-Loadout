@@ -52,6 +52,10 @@ order_index   integer
 - Real instance entries expose `icon` + `order` + `difficulty_mask`; the synthetic
   Raidbots aggregates expose `icon_button` instead. We only ingest real instances,
   so `icon` is the correct field name.
+- **`id` is always positive.** Negative ids are Raidbots' synthetic entries, and they
+  occur at the encounter level too, not just the instance level — `-97` "Trash Drop"
+  sits inside the real instance The Venomous Abyss. ETL filters them out; see
+  `03-etl.md` §1 step 4.
 
 ### `items`
 ```ts

@@ -112,7 +112,7 @@ The big one. Budget a full session.
 
 **Manual test**
 ```bash
-npm run sync:loot
+npm run sync:loot -- --dungeons
 ```
 ```bash
 sqlite3 data/app.db "SELECT COUNT(*) FROM items; SELECT COUNT(*) FROM items WHERE is_equippable=0;"
@@ -227,10 +227,12 @@ Realm slug normalisation. All six states from `05-ui.md` §5.
 
 ---
 
-## Step 10 — `/sync`, `verify-assumptions`, README
+## Step 10 — `verify-assumptions`, README, polish
+
+> `/sync` itself landed early — the admin table at Step 1, and the run buttons plus
+> concurrency lock alongside Step 4. What remains here is the drift tripwire and docs.
 
 **Do**
-- `/sync` admin page per `05-ui.md` §7, including stale-`running` detection.
 - `scripts/verify-assumptions.ts` per `03-etl.md` §5, non-zero on drift.
 - `sync:all` wired to run verify first.
 - README: setup, Battle.net client creation, sync commands, patch-day procedure.

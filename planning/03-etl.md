@@ -12,6 +12,20 @@ npm run sync:all         # instances -> loot -> news, sequentially
 
 `sync:loot` depends on `sync:instances` having run. `sync:all` enforces the order.
 
+`sync:loot` also accepts `-- --dungeons` to sync only the rotation dungeons, skipping
+current-tier raids. Useful when iterating: ~4 minutes instead of ~8.
+
+**Starting a sync from `/sync`.** Every script goes through `withSyncRun`, which:
+
+- refuses to start when a `running` row already exists for that source — the lock is in
+  shared state, so it covers the terminal and the browser equally;
+- accepts `--run-id=N` and **adopts** that existing `sync_runs` row instead of opening
+  its own. `/sync` creates the row in its Server Action before spawning, so the status
+  is visible immediately and a double-click cannot start two runs.
+
+Scripts remain unreachable over HTTP; only an explicit Server Action can spawn one.
+See `05-ui.md` §7.
+
 ---
 
 ## 1. `sync:instances`
@@ -54,7 +68,12 @@ npm run sync:all         # instances -> loot -> news, sequentially
    populate the wrong dungeons. This check is the season-rollover tripwire.
 
 4. Upsert instances with `in_current_rotation` set from the rotation list. Upsert
-   encounters from each real instance's `encounters[]` (`id`, `name`, `icon`, `order`).
+   encounters from each real instance's `encounters[]` (`id`, `name`, `icon`, `order`),
+   **filtering to `id > 0`**. Raidbots also injects synthetic encounters with negative
+   ids *inside* real instances — e.g. `-97` "Trash Drop" in The Venomous Abyss. They are
+   not journal encounters, Blizzard 404s on them, and they would render as a bossless
+   boss in the loot directory. The sync also deletes any negative-id encounter rows
+   written before this filter existed, so the fix is self-healing.
 
 **Rate limits** — 1 Raidbots request (gzip on). 1 Raider.IO request. Nothing to pace.
 

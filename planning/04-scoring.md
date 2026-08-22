@@ -28,12 +28,15 @@ export const RANK_WEIGHTS = [1.0, 0.7, 0.45, 0.25] as const;
 
 ## 3. Stat mapping — built from what the probe returned
 
-The probe found exactly these `preview_item.stats[].type.type` strings across ~90 items:
+Observed `preview_item.stats[].type.type` strings across the full synced set (551 items):
 
 ```
-AGILITY  CRIT_RATING  HASTE_RATING  INTELLECT
-MASTERY_RATING  STAMINA  STRENGTH  VERSATILITY
+AGILITY  CRIT_RATING  HASTE_RATING  INTELLECT  MASTERY_RATING
+STAMINA  STRENGTH  VERSATILITY  COMBAT_RATING_LIFESTEAL
 ```
+
+`COMBAT_RATING_LIFESTEAL` (Leech) appears on raid gear only and is a **tertiary** — it
+sits on top of the secondary budget and must never enter the denominator in §5.
 
 ```ts
 // lib/domain/stats.ts
@@ -46,6 +49,7 @@ export const STAT_MAP = {
   CRIT_RATING:    { kind: 'secondary' as const, key: 'crit'      },
   MASTERY_RATING: { kind: 'secondary' as const, key: 'mastery'   },
   VERSATILITY:    { kind: 'secondary' as const, key: 'vers'      },
+  COMBAT_RATING_LIFESTEAL: { kind: 'tertiary' as const, key: 'leech' },
 } as const;
 ```
 
@@ -55,7 +59,8 @@ Three corrections to the brief embedded here:
 - There is **no** `AGI_STR_INT` / `AGI_INT` / `STR_INT` combined enum. The brief
   predicted these; they do not exist. Flexible-primary items are expressed through
   `is_negated` instead (§4).
-- `STAMINA` is never a secondary. It is excluded from the denominator entirely.
+- `STAMINA` and `COMBAT_RATING_LIFESTEAL` are never secondaries. Tertiaries are
+  excluded from the denominator entirely.
 
 An unknown stat string must throw, not be silently ignored — `verify-assumptions.ts`
 checks this before every sync.

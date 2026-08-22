@@ -131,8 +131,10 @@ drizzle.config.ts            schema path + sqlite dialect
   It is read only by `lib/blizzard/auth.ts`, which is only imported by ETL scripts.
 - No React component performs a cross-origin `fetch`. CORS would block Wowhead and
   Raidbots anyway; the rule is about the secret and about not hammering third parties.
-- ETL scripts are **not** API routes. They are not reachable over HTTP. This prevents
-  an accidental page load triggering a 400-request Blizzard sync.
+- ETL scripts are **not** API routes, and no page render can trigger one. They can be
+  started from `/sync` by an explicit click (a Server Action spawns the script as a
+  detached child process), but never by a GET. See `05-ui.md` §7 for the safety rules
+  around that, which replaced the original "read-only admin page" decision.
 - **`lib/db` is split in two, and the split is not cosmetic.** The `server-only`
   package throws unconditionally when imported under plain Node, so an ETL script that
   imports it crashes on startup. `lib/db/client.ts` therefore holds the connection with

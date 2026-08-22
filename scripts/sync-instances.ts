@@ -4,7 +4,7 @@
  * See planning/03-etl.md §1. This is an all-or-nothing sync: both fetches must
  * succeed and the rotation cross-check must pass before anything is written.
  */
-import { sql } from 'drizzle-orm';
+import { lt, sql } from 'drizzle-orm';
 
 import { blizzOrNull, fetchInstanceTileUrl } from '../lib/blizzard/client';
 import { db, schema } from '../lib/db/client';
@@ -148,6 +148,13 @@ async function run() {
       // badge, but is never hard-deleted — old loot stays browsable.
       tx.update(schema.instances).set({ inCurrentRotation: 0 }).run();
 
+      // Self-healing: remove synthetic encounters written before they were filtered.
+      // Negative ids are never valid journal encounters, so this is unambiguous.
+      const purged = tx.delete(schema.encounters).where(lt(schema.encounters.id, 0)).run();
+      if (purged.changes > 0) {
+        ctx.log(`Purged ${purged.changes} synthetic encounter(s) from a previous sync.`);
+      }
+
       for (const inst of real) {
         const m = meta.get(inst.id)!;
 
@@ -179,7 +186,17 @@ async function run() {
           })
           .run();
 
-        for (const enc of inst.encounters ?? []) {
+        // Raidbots injects synthetic encounters with NEGATIVE ids inside real
+        // instances — e.g. -97 "Trash Drop" in The Venomous Abyss. They are not
+        // journal encounters, Blizzard 404s on them, and they would render as a
+        // bossless boss in the loot directory.
+        const realEncounters = (inst.encounters ?? []).filter((e) => e.id > 0);
+        const synthetic = (inst.encounters ?? []).length - realEncounters.length;
+        if (synthetic > 0) {
+          ctx.log(`${inst.name}: skipped ${synthetic} synthetic encounter(s).`);
+        }
+
+        for (const enc of realEncounters) {
           tx.insert(schema.encounters)
             .values({
               id: enc.id,

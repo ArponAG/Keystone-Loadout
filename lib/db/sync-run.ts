@@ -51,21 +51,61 @@ function reapStaleRuns(source: SyncSource): number {
   return stale.length;
 }
 
+/**
+ * When /sync starts a script it creates the sync_runs row itself and passes the id in,
+ * so the row exists the instant the click returns rather than a second later when the
+ * child finishes booting. The child adopts that row instead of opening a second one.
+ */
+function adoptedRunId(): number | null {
+  const arg = process.argv.find((a) => a.startsWith('--run-id='));
+  if (!arg) return null;
+  const id = Number(arg.slice('--run-id='.length));
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
 export async function withSyncRun(
   source: SyncSource,
   fn: (ctx: SyncContext) => Promise<void>,
 ): Promise<void> {
-  const reaped = reapStaleRuns(source);
-  if (reaped > 0) {
-    console.warn(`[${source}] marked ${reaped} abandoned run(s) as errored.`);
+  const adopted = adoptedRunId();
+
+  // Only reap when we opened the run ourselves; an adopted row is by definition
+  // a live one that /sync just created.
+  if (adopted === null) {
+    const reaped = reapStaleRuns(source);
+    if (reaped > 0) {
+      console.warn(`[${source}] marked ${reaped} abandoned run(s) as errored.`);
+    }
+
+    // sync_runs is shared state, so this lock covers the terminal as well as /sync —
+    // two concurrent loot syncs would double every Blizzard request for nothing.
+    const inFlight = db
+      .select({ id: schema.syncRuns.id, startedAt: schema.syncRuns.startedAt })
+      .from(schema.syncRuns)
+      .where(and(eq(schema.syncRuns.source, source), eq(schema.syncRuns.status, 'running')))
+      .all();
+
+    if (inFlight.length > 0) {
+      const age = Math.round((Date.now() - inFlight[0].startedAt) / 1000);
+      console.error(
+        `[${source}] A sync is already running (run ${inFlight[0].id}, started ${age}s ago).\n` +
+          `Wait for it to finish, or check /sync. A run stuck for over 30 minutes is ` +
+          `treated as crashed and cleared automatically.`,
+      );
+      process.exitCode = 1;
+      return;
+    }
   }
 
   const startedAt = Date.now();
-  const [run] = db
-    .insert(schema.syncRuns)
-    .values({ source, startedAt, status: 'running' })
-    .returning({ id: schema.syncRuns.id })
-    .all();
+  const run =
+    adopted !== null
+      ? { id: adopted }
+      : db
+          .insert(schema.syncRuns)
+          .values({ source, startedAt, status: 'running' })
+          .returning({ id: schema.syncRuns.id })
+          .all()[0];
 
   let recordCount = 0;
   const warnings: string[] = [];
