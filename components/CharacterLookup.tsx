@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 
+import { CharacterSearch } from '@/components/CharacterSearch';
 import { WowIcon } from '@/components/WowIcon';
 import { Banner } from '@/components/ui';
 import { slugIconUrl } from '@/lib/domain/icons';
@@ -40,13 +41,12 @@ export function CharacterLookup() {
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<Response | null>(null);
 
-  async function submit(event: React.FormEvent) {
-    event.preventDefault();
+  async function lookup(q: { region: string; realm: string; name: string }) {
     setLoading(true);
     setError(null);
 
     try {
-      const query = new URLSearchParams({ region, realm, name });
+      const query = new URLSearchParams(q);
       const res = await fetch(`/api/character?${query}`);
       const body = await res.json();
 
@@ -64,12 +64,30 @@ export function CharacterLookup() {
     }
   }
 
+  function submit(event: React.FormEvent) {
+    event.preventDefault();
+    void lookup({ region, realm, name });
+  }
+
+  /** Picking a suggestion fills the manual fields and looks the character up at once. */
+  function onPick(pick: { region: string; realm: string; name: string }) {
+    setRegion(pick.region);
+    setRealm(pick.realm);
+    setName(pick.name);
+    void lookup(pick);
+  }
+
   return (
     <>
-      <form
-        onSubmit={submit}
-        className="mb-6 flex flex-wrap items-end gap-3 rounded-lg border border-line bg-surface p-4"
-      >
+      <div className="mb-3 rounded-lg border border-line bg-surface p-4">
+        <CharacterSearch onPick={onPick} />
+      </div>
+
+      <details className="mb-6 rounded-lg border border-line bg-surface">
+        <summary className="cursor-pointer px-4 py-2 text-sm text-ink-soft hover:text-ink">
+          Or enter realm and name manually
+        </summary>
+        <form onSubmit={submit} className="flex flex-wrap items-end gap-3 border-t border-line p-4">
         <label className="flex flex-col gap-1">
           <span className="text-xs tracking-wide text-ink-faint uppercase">Region</span>
           <select
@@ -115,11 +133,12 @@ export function CharacterLookup() {
           {loading ? 'Looking up…' : 'Look up'}
         </button>
 
-        <p className="w-full text-xs text-ink-faint">
-          Realm must be a slug — spaces and apostrophes become hyphens. “Moon Guard” →{' '}
-          <code className="font-mono">moon-guard</code>.
-        </p>
-      </form>
+          <p className="w-full text-xs text-ink-faint">
+            Realm must be a slug — spaces and apostrophes become hyphens. “Moon Guard” →{' '}
+            <code className="font-mono">moon-guard</code>.
+          </p>
+        </form>
+      </details>
 
       {error ? (
         <Banner variant="error">{error}</Banner>
