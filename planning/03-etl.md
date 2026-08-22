@@ -75,7 +75,13 @@ See `05-ui.md` §7.
    boss in the loot directory. The sync also deletes any negative-id encounter rows
    written before this filter existed, so the fix is self-healing.
 
-**Rate limits** — 1 Raidbots request (gzip on). 1 Raider.IO request. Nothing to pace.
+5. Fetch `https://wago.tools/db2/MythicPlusSeasonRewardLevels/csv` and store the
+   season's M+ vault reward curve in `keystone_rewards`. **Non-fatal**: a failure warns
+   and leaves the table alone, and the character page simply drops its vault comparison
+   rather than guessing numbers. (Note: the `?build=` query parameter 404s — omit it.)
+
+**Rate limits** — 1 Raidbots request (gzip on). 1 Raider.IO request. 1 wago.tools
+request (8 KB). Nothing to pace.
 
 **Failure modes**
 

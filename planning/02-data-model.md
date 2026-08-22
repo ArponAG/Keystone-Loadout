@@ -12,8 +12,10 @@ The brief's schema assumed integer `inventory_type` and a `difficulty` column on
   not an integer. Stored as TEXT.
 - A dungeon boss drops the **same item list at every difficulty**; only the awarded
   ilvl differs. So difficulty is not a property of a drop — it is a property of the
-  *run*. `difficulty` moves out of `item_sources` and into a hand-maintained ilvl
-  table in `config/season.json`.
+  *run*. `difficulty` moves out of `item_sources` entirely; reward item levels live in
+  `keystone_rewards`, synced from the game's own reward table. (This was originally
+  planned as a hand-maintained stub in `config/season.json`; that stub never got filled
+  in and has been removed now that the real data is available.)
 
 ## 1. Tables
 
@@ -131,6 +133,24 @@ UNIQUE (item_id, encounter_id)
 - An item legitimately drops from more than one boss (the probe saw
   "Yoke of the Charging Bear" twice in one instance), hence a separate table and a
   UNIQUE guard so re-syncs are idempotent.
+
+### `keystone_rewards`
+```ts
+key_level        integer PK   // Mythic+ key level
+vault_item_level integer notnull
+season_id        integer notnull
+activity_tier_id integer notnull
+synced_at        integer notnull
+```
+- Sourced from the game's own `MythicPlusSeasonRewardLevels` DB2 table via wago.tools,
+  which **replaced a hand-maintained stub** in `config/season.json` that never got
+  filled in. Nothing here needs maintaining by hand.
+- **The column is the vault level, deliberately.** The DB2 table's
+  `EndOfRunRewardLevel` is 0 in every season back to season 3, so end-of-run drop ilvls
+  are not in this data. Naming the column `vault_item_level` stops the UI implying
+  otherwise.
+- Which of a season's several `ActivityTierID`s is the M+ one is not labelled anywhere;
+  see `lib/domain/rewards.ts` for the two-part rule and the seasons it was tested against.
 
 ### `news`
 ```ts

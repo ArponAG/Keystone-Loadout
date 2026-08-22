@@ -195,3 +195,18 @@ export const savedCharacters = sqliteTable(
   },
   (t) => [index('idx_saved_characters_saved').on(t.savedAt)],
 );
+
+/** Great Vault reward item level per Mythic+ key level, from the game's own
+ *  MythicPlusSeasonRewardLevels DB2 table via wago.tools.
+ *
+ *  This replaced a hand-maintained stub in config/season.json. NOTE the column is
+ *  the VAULT level: the table's EndOfRunRewardLevel is 0 in every season, so
+ *  end-of-run drop ilvls are simply not in this data and must not be implied. */
+export const keystoneRewards = sqliteTable('keystone_rewards', {
+  /** Mythic+ key level. Rewards plateau above the table's highest entry. */
+  keyLevel: integer('key_level').primaryKey(),
+  vaultItemLevel: integer('vault_item_level').notNull(),
+  seasonId: integer('season_id').notNull(),
+  activityTierId: integer('activity_tier_id').notNull(),
+  syncedAt: integer('synced_at').notNull(),
+});

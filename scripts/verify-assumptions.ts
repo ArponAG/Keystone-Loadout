@@ -8,6 +8,7 @@
  * keep producing plausible, wrong answers. See planning/03-etl.md §5.
  */
 import { blizz, blizzOrNull } from '../lib/blizzard/client';
+import { latestSeasonId, parseRewardCsv, selectMythicPlusCurve } from '../lib/domain/rewards';
 import { isKnownStat } from '../lib/domain/stats';
 import { INVENTORY_TYPE_TO_SLOT, slotFor } from '../lib/domain/slots';
 import season from '../config/season.json';
@@ -182,6 +183,30 @@ async function main() {
     );
   } catch (e) {
     record('Wowhead RSS still has <item> and <guid>', false, String(e));
+  }
+
+  // --- 7. Mythic+ reward curve ---------------------------------------------
+  // The character page's "below vault" judgement rests entirely on this curve being
+  // identifiable. If the table's shape changes the feature must go quiet, not guess.
+  try {
+    const res = await fetch('https://wago.tools/db2/MythicPlusSeasonRewardLevels/csv', {
+      headers: { 'Accept-Encoding': 'gzip', 'User-Agent': UA },
+    });
+    const rows = parseRewardCsv(await res.text());
+    const seasonId = latestSeasonId(rows);
+    const curve = seasonId === null ? [] : selectMythicPlusCurve(rows, seasonId);
+
+    record(
+      'a Mythic+ reward curve is identifiable',
+      curve.length >= 3,
+      curve.length >= 3
+        ? `season ${seasonId} tier ${curve[0].activityTierId}: +${curve[0].keyLevel} -> ` +
+          `${curve[0].vaultItemLevel} .. +${curve[curve.length - 1].keyLevel} -> ` +
+          `${curve[curve.length - 1].vaultItemLevel}`
+        : 'No tier starting at key level 2 with enough rows — the vault comparison will be hidden.',
+    );
+  } catch (e) {
+    record('a Mythic+ reward curve is identifiable', false, String(e));
   }
 
   // --- summary --------------------------------------------------------------

@@ -9,6 +9,7 @@ import { WowIcon } from '@/components/WowIcon';
 import { Banner } from '@/components/ui';
 import { slugIconUrl } from '@/lib/domain/icons';
 import type { SavedCharacter } from '@/app/api/character/saved/route';
+import type { GearAudit, SlotAudit } from '@/lib/domain/gear-audit';
 import type { CharacterProfile, MythicPlus, TalentBuild } from '@/lib/raiderio/character';
 
 const REGIONS = ['us', 'eu', 'tw', 'kr'] as const;
@@ -26,6 +27,7 @@ type Response = {
   profile: CharacterProfile;
   talents: TalentBuild | null;
   mythicPlus: MythicPlus | null;
+  audit: GearAudit;
   cachedAt: number;
   stale: boolean;
   normalised: { region: string; realm: string; name: string };
@@ -283,14 +285,46 @@ function Profile({
       </p>
 
       <section>
-        <h3 className="mb-3 text-h2 text-ink">Equipped gear</h3>
+        <div className="mb-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <h3 className="text-h2 text-ink">Equipped gear</h3>
+          <span className="text-sm text-ink-faint">
+            average <span className="tabular text-ink-soft">{data.audit.averageItemLevel}</span>
+            {data.audit.target ? (
+              <>
+                {' · +'}
+                {data.audit.target.keyLevel} keys award{' '}
+                <span className="tabular text-ink-soft">{data.audit.target.vaultItemLevel}</span> in
+                the vault
+                {data.audit.target.cappedAt ? ` (capped at +${data.audit.target.cappedAt})` : ''}
+              </>
+            ) : null}
+          </span>
+        </div>
+
+        <p className="mb-3 text-xs text-ink-faint">
+          {data.audit.target ? (
+            <>
+              <strong className="text-ink-soft">{data.audit.belowVaultCount}</strong> slots are
+              below what your keys already award.{' '}
+            </>
+          ) : null}
+          Trinkets and weapons are not judged — their value is dominated by procs and weapon
+          damage, which item level does not capture.
+        </p>
+
         <div className="grid gap-2 sm:grid-cols-2">
           {SLOT_ORDER.filter((slot) => items[slot]).map((slot) => {
             const item = items[slot];
+            const slotAudit = data.audit.slots.find((s) => s.slot === slot);
             return (
               <div
                 key={slot}
                 className="flex items-center gap-3 rounded-md border border-line bg-surface p-2"
+                style={
+                  slotAudit?.verdict === 'weak'
+                    ? { borderColor: 'color-mix(in srgb, var(--color-stale) 45%, transparent)' }
+                    : undefined
+                }
               >
                 <WowIcon
                   src={slugIconUrl(item.icon)}
@@ -309,7 +343,7 @@ function Profile({
                   </a>
                   <span className="text-xs text-ink-faint">{slot}</span>
                 </div>
-                <span className="tabular text-num text-ink-soft">{item.item_level}</span>
+                <SlotStanding audit={slotAudit} itemLevel={item.item_level} />
               </div>
             );
           })}
@@ -355,5 +389,49 @@ function Stat({ label, value }: { label: string; value: string | number }) {
       <div className="tabular text-h1 text-ink">{value}</div>
       <div className="text-xs tracking-wide text-ink-faint uppercase">{label}</div>
     </div>
+  );
+}
+
+/**
+ * Item level plus how the slot stands.
+ *
+ * Two signals, kept visually distinct: colour is RELATIVE (versus this character's own
+ * average) and the "−N" chip is ABSOLUTE (versus the vault reward their keys already
+ * award). Unjudged slots show a plain number and no judgement at all.
+ */
+function SlotStanding({ audit, itemLevel }: { audit?: SlotAudit; itemLevel: number }) {
+  const colour =
+    audit?.verdict === 'weak'
+      ? 'var(--color-stale)'
+      : audit?.verdict === 'strong'
+        ? 'var(--color-ok)'
+        : 'var(--color-ink-soft)';
+
+  return (
+    <span className="flex shrink-0 items-center gap-2">
+      {audit?.belowVault ? (
+        <span
+          className="tabular rounded-sm px-1.5 py-0.5 text-xs"
+          style={{
+            color: 'var(--color-stale)',
+            backgroundColor: 'color-mix(in srgb, var(--color-stale) 15%, transparent)',
+          }}
+          title={`${audit.belowVault} below the vault reward for your key level`}
+        >
+          −{audit.belowVault}
+        </span>
+      ) : null}
+      <span
+        className="tabular text-num"
+        style={{ color: colour }}
+        title={
+          audit && audit.verdict !== 'unjudged'
+            ? `${audit.vsAverage >= 0 ? '+' : ''}${audit.vsAverage} vs your average`
+            : 'Not judged by item level'
+        }
+      >
+        {itemLevel}
+      </span>
+    </span>
   );
 }

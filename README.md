@@ -91,7 +91,7 @@ npm run dev
 | Command | What it does |
 |---|---|
 | `npm run dev` | Dev server on :3000 |
-| `npm test` | Unit tests (45) — scoring, filters, build URL parsing, Raider.IO shaping |
+| `npm test` | Unit tests (66) — scoring, filters, URL parsing, Raider.IO shaping, gear audit |
 | `npm run verify` | Assumption tripwire — exits non-zero on API drift |
 | `npm run sync:safe` | `verify` then `sync:all` — the one to use |
 | `npm run sync:all` | instances → loot → news |
@@ -115,10 +115,11 @@ it is the app continuing to work while producing quietly wrong answers.
 npm run verify
 ```
 
-Seven checks: `journal-encounter` still carries `items[]`; every stat key is in
+Eight checks: `journal-encounter` still carries `items[]`; every stat key is in
 `STAT_MAP`; every `inventory_type` maps to a slot; the cloak assumption still holds; the
 two rotation sources still agree; `config/season.json` matches the live season; the RSS
-feed still parses. Non-zero exit means **do not sync yet**.
+feed still parses; a Mythic+ reward curve is identifiable. Non-zero exit means
+**do not sync yet**.
 
 ### New season
 

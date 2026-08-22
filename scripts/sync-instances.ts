@@ -9,10 +9,12 @@ import { lt, sql } from 'drizzle-orm';
 import { blizzOrNull, fetchInstanceTileUrl } from '../lib/blizzard/client';
 import { db, schema } from '../lib/db/client';
 import { withSyncRun } from '../lib/db/sync-run';
+import { latestSeasonId, parseRewardCsv, selectMythicPlusCurve } from '../lib/domain/rewards';
 import season from '../config/season.json';
 
 const RAIDBOTS_INSTANCES = 'https://www.raidbots.com/static/data/live/instances.json';
 const RIO_STATIC = 'https://raider.io/api/v1/mythic-plus/static-data';
+const REWARD_LEVELS_CSV = 'https://wago.tools/db2/MythicPlusSeasonRewardLevels/csv';
 const UA = 'KeystoneLoadout/0.1 (personal project)';
 
 // ------------------------------------------------------------------ source types
@@ -219,6 +221,48 @@ async function run() {
         }
       }
     });
+
+    // --- 6. Keystone reward curve -----------------------------------------
+    // From the game's own MythicPlusSeasonRewardLevels DB2 table. Non-fatal: without
+    // it the character page simply drops its "vs vault" comparison rather than
+    // guessing numbers.
+    try {
+      ctx.log('Fetching Mythic+ reward levels...');
+      const res = await fetch(REWARD_LEVELS_CSV, {
+        headers: { 'Accept-Encoding': 'gzip', 'User-Agent': UA },
+      });
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+
+      const rows = parseRewardCsv(await res.text());
+      const seasonId = latestSeasonId(rows);
+      const curve = seasonId === null ? [] : selectMythicPlusCurve(rows, seasonId);
+
+      if (curve.length === 0) {
+        ctx.warn('No Mythic+ reward curve could be identified — vault comparison disabled.');
+      } else {
+        db.transaction((tx) => {
+          tx.delete(schema.keystoneRewards).run();
+          for (const row of curve) {
+            tx.insert(schema.keystoneRewards)
+              .values({
+                keyLevel: row.keyLevel,
+                vaultItemLevel: row.vaultItemLevel,
+                seasonId: row.seasonId,
+                activityTierId: row.activityTierId,
+                syncedAt,
+              })
+              .run();
+          }
+        });
+        ctx.log(
+          `Reward curve: season ${seasonId} tier ${curve[0].activityTierId}, ` +
+            `+${curve[0].keyLevel} -> ${curve[0].vaultItemLevel} .. ` +
+            `+${curve[curve.length - 1].keyLevel} -> ${curve[curve.length - 1].vaultItemLevel}`,
+        );
+      }
+    } catch (e) {
+      ctx.warn(`Reward levels unavailable: ${String(e)}`);
+    }
 
     ctx.setRecordCount(real.length);
     ctx.log(`Wrote ${real.length} instances and ${encounterCount} encounters.`);

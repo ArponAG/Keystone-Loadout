@@ -1,4 +1,9 @@
+import { asc } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
+
+import { db, schema } from '@/lib/db';
+import { auditGear, typicalKeyLevel } from '@/lib/domain/gear-audit';
+import { vaultRewardFor } from '@/lib/domain/rewards';
 
 import {
   lookupCharacter,
@@ -45,13 +50,40 @@ export async function GET(request: Request) {
   // same information at a fifth of the size.
   const { talentLoadout: _raw, ...profile } = result.profile;
 
+  const mythicPlus = shapeMythicPlus(result.profile);
+
+  // Tier 2 target: what the Great Vault awards at the key level this character
+  // actually clears. The curve comes from the game's own reward table (synced by
+  // sync:instances); with no curve the audit degrades to the relative signal alone.
+  const curve = await db
+    .select({
+      keyLevel: schema.keystoneRewards.keyLevel,
+      vaultItemLevel: schema.keystoneRewards.vaultItemLevel,
+    })
+    .from(schema.keystoneRewards)
+    .orderBy(asc(schema.keystoneRewards.keyLevel));
+
+  const keyLevel = typicalKeyLevel(mythicPlus?.bestRuns ?? []);
+  const reward = keyLevel === null ? null : vaultRewardFor(curve, keyLevel);
+
+  const audit = auditGear(
+    Object.entries(profile.gear?.items ?? {}).map(([slot, item]) => ({
+      slot,
+      itemLevel: item.item_level,
+    })),
+    reward && keyLevel !== null
+      ? { keyLevel, itemLevel: reward.itemLevel, cappedAt: reward.cappedAt }
+      : null,
+  );
+
   return NextResponse.json(
     {
       profile,
       // Shaped server-side: Raider.IO's raw talent payload is 31 KB of tree-node data
       // the browser has no use for.
       talents: shapeTalents(result.profile),
-      mythicPlus: shapeMythicPlus(result.profile),
+      mythicPlus,
+      audit,
       cachedAt: result.cachedAt,
       stale: result.stale,
       normalised: { region, realm, name },
