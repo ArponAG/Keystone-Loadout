@@ -12,11 +12,14 @@
     "db:studio": "drizzle-kit studio",
     "sync:instances": "tsx scripts/sync-instances.ts",
     "sync:loot": "tsx scripts/sync-loot.ts",
-    "test": "tsx --test lib/**/*.test.ts"
+    "test": "tsx --test lib/**/*.test.ts",
+    "sync:news": "tsx scripts/sync-news.ts",
+    "sync:all": "npm run sync:instances && npm run sync:loot && npm run sync:news"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",
     "drizzle-orm": "^0.45.2",
+    "fast-xml-parser": "^5.11.0",
     "next": "^16.3.2",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

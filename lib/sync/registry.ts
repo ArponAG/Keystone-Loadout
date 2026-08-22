@@ -46,8 +46,8 @@ export const SYNC_SOURCES: SyncSourceInfo[] = [
     label: 'News',
     script: 'scripts/sync-news.ts',
     command: 'npm run sync:news',
-    implemented: false,
-    estimate: '~2s, 2 requests',
+    implemented: true,
+    estimate: '~3s, 2 requests',
   },
 ];
 
