@@ -9,7 +9,8 @@
     "probe": "tsx scripts/probe.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "sync:instances": "tsx scripts/sync-instances.ts"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",

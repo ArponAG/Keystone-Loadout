@@ -78,8 +78,10 @@ components/
 
 lib/
   db/
-    index.ts                 drizzle client singleton
+    client.ts                connection + drizzle instance (NO server-only guard)
+    index.ts                 server-only re-export of client.ts — app code imports this
     schema.ts                table definitions
+    sync-run.ts              sync_runs lifecycle + stale-'running' reaping
   blizzard/
     auth.ts                  OAuth token + disk cache + 401 refresh
     client.ts                rate-limited fetch wrapper
@@ -131,6 +133,13 @@ drizzle.config.ts            schema path + sqlite dialect
   Raidbots anyway; the rule is about the secret and about not hammering third parties.
 - ETL scripts are **not** API routes. They are not reachable over HTTP. This prevents
   an accidental page load triggering a 400-request Blizzard sync.
+- **`lib/db` is split in two, and the split is not cosmetic.** The `server-only`
+  package throws unconditionally when imported under plain Node, so an ETL script that
+  imports it crashes on startup. `lib/db/client.ts` therefore holds the connection with
+  no guard, and `lib/db/index.ts` re-exports it behind `import 'server-only'`.
+  App code imports `@/lib/db`; scripts import `../lib/db/client`. Do not "tidy" these
+  back together — the guard is what makes importing the DB from a Client Component a
+  build error rather than a runtime surprise.
 
 ## 5. Rate limiting and etiquette
 
