@@ -1,0 +1,120 @@
+@import 'tailwindcss';
+
+/* Design tokens — see planning/06-design-extract.md.
+   Tailwind v4 takes theme config in CSS, not tailwind.config.ts. */
+@theme {
+  /* --- surfaces --- */
+  --color-base: #0e0f13;
+  --color-surface: #16181f;
+  --color-raised: #1e212b;
+  --color-inset: #0a0b0e;
+
+  /* --- lines --- */
+  --color-line: #2a2e3a;
+  --color-line-strong: #3a3f4f;
+
+  /* --- text --- */
+  --color-ink: #e8eaf0;
+  --color-ink-soft: #a2a8b8;
+  --color-ink-faint: #6b7285;
+  --color-ink-inverse: #0e0f13;
+
+  /* --- accent --- */
+  --color-accent: #c8a45c;
+  --color-accent-hover: #dbb96f;
+  --color-accent-muted: #5a4c2e;
+
+  /* --- item quality (canonical WoW values, do not alter) --- */
+  --color-q-poor: #9d9d9d;
+  --color-q-common: #ffffff;
+  --color-q-uncommon: #1eff00;
+  --color-q-rare: #0070dd;
+  --color-q-epic: #a335ee;
+  --color-q-legendary: #ff8000;
+  --color-q-artifact: #e6cc80;
+  --color-q-heirloom: #00ccff;
+
+  /* --- fit score ramp --- */
+  --color-fit-90: #4ade80;
+  --color-fit-75: #a3e635;
+  --color-fit-60: #facc15;
+  --color-fit-40: #fb923c;
+  --color-fit-0: #f87171;
+  --color-fit-none: #6b7285;
+
+  /* --- status --- */
+  --color-ok: #4ade80;
+  --color-stale: #facc15;
+  --color-error: #f87171;
+  --color-running: #60a5fa;
+
+  /* --- type scale --- */
+  --text-display: 32px;
+  --text-display--line-height: 1.15;
+  --text-display--font-weight: 600;
+
+  --text-h1: 24px;
+  --text-h1--line-height: 1.25;
+  --text-h1--font-weight: 600;
+
+  --text-h2: 18px;
+  --text-h2--line-height: 1.3;
+  --text-h2--font-weight: 600;
+
+  --text-h3: 15px;
+  --text-h3--line-height: 1.4;
+  --text-h3--font-weight: 600;
+
+  --text-body: 14px;
+  --text-body--line-height: 1.5;
+
+  --text-item: 14px;
+  --text-item--line-height: 1.4;
+  --text-item--font-weight: 600;
+
+  --text-sm: 13px;
+  --text-sm--line-height: 1.45;
+
+  --text-xs: 11px;
+  --text-xs--line-height: 1.4;
+  --text-xs--font-weight: 500;
+
+  --text-num: 14px;
+  --text-num--line-height: 1;
+  --text-num--font-weight: 600;
+
+  /* --- radii --- */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+
+  /* --- fonts --- */
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--color-base);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: 1.5;
+}
+
+/* Numeric columns align down the column — see 06-design-extract.md §3. */
+.tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Focus rings are never removed. */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}

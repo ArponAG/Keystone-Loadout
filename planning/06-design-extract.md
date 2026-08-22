@@ -20,24 +20,34 @@ Three rules:
 3. **Dark by default.** The subject matter is a dark game UI, and this is a tool used
    next to a running client.
 
+## 1b. Token naming (updated at Step 1)
+
+Tailwind v4 takes theme config **in CSS via `@theme`**, not `tailwind.config.ts`. Token
+names therefore follow Tailwind's namespace convention (`--color-*`, `--text-*`,
+`--radius-*`), and the generated utility is the token name minus its namespace.
+
+Names were flattened so the utilities read well — `--color-surface` gives `bg-surface`,
+where a nested `bg.surface` would have given the stuttering `bg-bg-surface`.
+Source of truth is [`app/globals.css`](../app/globals.css).
+
 ## 2. Palette
 
 ### Surface
 ```
---bg-base      #0e0f13    page background
---bg-surface   #16181f    cards, table backgrounds
---bg-raised    #1e212b    hovered rows, popovers
---bg-inset     #0a0b0e    code blocks, form inputs
---border       #2a2e3a    default hairline
---border-strong #3a3f4f   emphasised divider
+--color-base      #0e0f13    page background      -> bg-base
+--color-surface   #16181f    cards, tables        -> bg-surface
+--color-raised    #1e212b    hovered rows         -> bg-raised
+--color-inset     #0a0b0e    code blocks, inputs  -> bg-inset
+--color-line        #2a2e3a  default hairline     -> border-line
+--color-line-strong #3a3f4f  emphasised divider   -> border-line-strong
 ```
 
 ### Text
 ```
---text-primary   #e8eaf0
---text-secondary #a2a8b8
---text-muted     #6b7285   timestamps, "not gear" rows
---text-inverse   #0e0f13
+--color-ink         #e8eaf0   primary    -> text-ink
+--color-ink-soft    #a2a8b8   secondary  -> text-ink-soft
+--color-ink-faint   #6b7285   muted; timestamps, "not gear" -> text-ink-faint
+--color-ink-inverse #0e0f13   on light   -> text-ink-inverse
 ```
 
 ### Accent
@@ -51,28 +61,28 @@ colours must win any conflict.
 
 ### Item quality — canonical, do not alter
 ```
---q-poor       #9d9d9d
---q-common     #ffffff
---q-uncommon   #1eff00
---q-rare       #0070dd
---q-epic       #a335ee
---q-legendary  #ff8000
---q-artifact   #e6cc80
---q-heirloom   #00ccff
+--color-q-poor       #9d9d9d     -> text-q-poor
+--color-q-common     #ffffff
+--color-q-uncommon   #1eff00
+--color-q-rare       #0070dd
+--color-q-epic       #a335ee
+--color-q-legendary  #ff8000
+--color-q-artifact   #e6cc80
+--color-q-heirloom   #00ccff
 ```
-`--q-rare` at #0070dd on `--bg-surface` is low contrast for body text. Use quality
+`--color-q-rare` at #0070dd on `--color-surface` is low contrast for body text. Use quality
 colour on **item names only** (bold, ≥14px), never on small or secondary text. Where a
 name would fail contrast, the row keeps a 3px left border in the quality colour and the
 name renders in `--text-primary`.
 
 ### Fit score — sequential ramp, deliberately not the quality hue range
 ```
---fit-90  #4ade80    90-100%
---fit-75  #a3e635    75-89%
---fit-60  #facc15    60-74%
---fit-40  #fb923c    40-59%
---fit-0   #f87171    below 40%
---fit-none #6b7285   NO_SECONDARIES
+--color-fit-90   #4ade80    90-100%          -> text-fit-90 / bg-fit-90
+--color-fit-75   #a3e635    75-89%
+--color-fit-60   #facc15    60-74%
+--color-fit-40   #fb923c    40-59%
+--color-fit-0    #f87171    below 40%
+--color-fit-none #6b7285    NO_SECONDARIES
 ```
 Green-to-red is defensible here because the scale is genuinely ordinal and single-
 dimensioned. Each badge shows **the number as text** as well as the colour, so the
@@ -80,10 +90,10 @@ colour is redundant encoding, not the only channel.
 
 ### Status
 ```
---status-ok      #4ade80    synced <24h
---status-stale   #facc15    <7d
---status-error   #f87171    error / >7d
---status-running #60a5fa
+--color-ok      #4ade80    synced <24h    -> text-ok
+--color-stale   #facc15    <7d            -> text-stale
+--color-error   #f87171    error / >7d    -> text-error
+--color-running #60a5fa    in flight      -> text-running
 ```
 
 ## 3. Type
@@ -153,36 +163,52 @@ Shadows on a near-black background are invisible work.
 
 ## 7. Tailwind mapping
 
-```ts
-// tailwind.config.ts
-theme: {
-  extend: {
-    colors: {
-      bg:     { base:'#0e0f13', surface:'#16181f', raised:'#1e212b', inset:'#0a0b0e' },
-      border: { DEFAULT:'#2a2e3a', strong:'#3a3f4f' },
-      text:   { primary:'#e8eaf0', secondary:'#a2a8b8', muted:'#6b7285' },
-      accent: { DEFAULT:'#c8a45c', hover:'#dbb96f', muted:'#5a4c2e' },
-      quality:{ poor:'#9d9d9d', common:'#ffffff', uncommon:'#1eff00', rare:'#0070dd',
-                epic:'#a335ee', legendary:'#ff8000', artifact:'#e6cc80', heirloom:'#00ccff' },
-      fit:    { 90:'#4ade80', 75:'#a3e635', 60:'#facc15', 40:'#fb923c',
-                0:'#f87171', none:'#6b7285' },
-      status: { ok:'#4ade80', stale:'#facc15', error:'#f87171', running:'#60a5fa' },
-    },
-    borderRadius: { sm:'4px', md:'6px', lg:'10px' },
-    fontSize: {
-      display:['32px',{lineHeight:'1.15',fontWeight:'600'}],
-      h1:['24px',{lineHeight:'1.25',fontWeight:'600'}],
-      h2:['18px',{lineHeight:'1.3', fontWeight:'600'}],
-      h3:['15px',{lineHeight:'1.4', fontWeight:'600'}],
-      body:['14px',{lineHeight:'1.5'}],
-      item:['14px',{lineHeight:'1.4',fontWeight:'600'}],
-      sm:['13px',{lineHeight:'1.45'}],
-      xs:['11px',{lineHeight:'1.4',fontWeight:'500'}],
-      num:['14px',{lineHeight:'1',fontWeight:'600'}],
-    },
-  },
+**There is no `tailwind.config.ts`.** Tailwind v4 (4.3.3) configures the theme in CSS.
+The live definition is [`app/globals.css`](../app/globals.css); this is its shape:
+
+```css
+@import 'tailwindcss';
+
+@theme {
+  --color-base: #0e0f13;          /* -> bg-base            */
+  --color-surface: #16181f;       /* -> bg-surface         */
+  --color-raised: #1e212b;
+  --color-inset: #0a0b0e;
+
+  --color-line: #2a2e3a;          /* -> border-line        */
+  --color-line-strong: #3a3f4f;
+
+  --color-ink: #e8eaf0;           /* -> text-ink           */
+  --color-ink-soft: #a2a8b8;
+  --color-ink-faint: #6b7285;
+
+  --color-accent: #c8a45c;
+  --color-accent-hover: #dbb96f;
+  --color-accent-muted: #5a4c2e;
+
+  --color-q-poor: #9d9d9d;        /* ... through q-heirloom */
+  --color-fit-90: #4ade80;        /* ... through fit-none   */
+  --color-ok: #4ade80;            /* stale / error / running */
+
+  --text-display: 32px;           /* -> text-display        */
+  --text-display--line-height: 1.15;
+  --text-display--font-weight: 600;
+  /* ... h1 h2 h3 body item sm xs num */
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
 }
 ```
+
+Two notes for later steps:
+
+- **Type tokens carry their own line-height and weight** via the `--text-*--line-height`
+  and `--text-*--font-weight` suffixes, so `text-h2` alone sets all three. Do not pair it
+  with a separate `font-semibold`.
+- **Tailwind v4 tree-shakes unused theme values.** The quality and fit colours will not
+  appear in the emitted CSS until a component actually uses them, which is expected —
+  they were verified to resolve correctly at Step 1 and simply have no consumer yet.
 
 ## 8. Accessibility notes
 

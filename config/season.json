@@ -1,0 +1,45 @@
+{
+  "_comment": [
+    "Hand-maintained. This file changes every season and must never be derived logic.",
+    "Values below were confirmed by scripts/probe.ts on 2026-08-22.",
+    "rewardItemLevels maps a difficulty/keystone tier to the ilvl actually awarded.",
+    "It exists because items.base_item_level is the JOURNAL base ilvl and is NOT what",
+    "you receive - the same M+ rotation contains dungeons with base ilvls of 219 and 108.",
+    "Fill in the keystone table from in-game or Wowhead when you want cross-tier display."
+  ],
+  "expansion": {
+    "name": "Midnight",
+    "blizzardJournalExpansionId": 516,
+    "raiderIoExpansionId": 11
+  },
+  "season": {
+    "slug": "season-mn-2",
+    "shortName": "Season 2",
+    "startsUtc": "2026-08-18T15:00:00Z",
+    "endsUtc": "2030-01-01T00:00:00Z"
+  },
+  "rewardItemLevels": {
+    "dungeon": {
+      "NORMAL": null,
+      "HEROIC": null,
+      "MYTHIC": null
+    },
+    "keystone": {
+      "2": null,
+      "3": null,
+      "4": null,
+      "5": null,
+      "6": null,
+      "7": null,
+      "8": null,
+      "9": null,
+      "10": null
+    },
+    "raid": {
+      "LFR": null,
+      "NORMAL": null,
+      "HEROIC": null,
+      "MYTHIC": null
+    }
+  }
+}

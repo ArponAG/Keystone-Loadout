@@ -43,8 +43,8 @@ through a Route Handler with a 15-minute DB-backed cache, never from the browser
 
 | Concern | Choice | Why |
 |---|---|---|
-| Framework | Next.js 15, App Router, TypeScript | Server Components let pages read SQLite directly with no API layer in between |
-| Styling | Tailwind CSS | Tokens defined in `06-design-extract.md` |
+| Framework | Next.js **16**, App Router, TypeScript | Server Components let pages read SQLite directly with no API layer in between. *(Brief said 15; 16 was current at scaffold time and is App Router either way.)* |
+| Styling | Tailwind **v4** | Theme lives in `app/globals.css` via `@theme` — v4 has no `tailwind.config.ts`. See `06-design-extract.md` §7 |
 | DB | SQLite via `better-sqlite3` | Single file. Nuke and re-sync on patch day is `rm data/app.db && npm run sync:all` |
 | ORM | Drizzle | Typed schema, driver-agnostic; a MySQL swap is a config change |
 | XML | `fast-xml-parser` | RSS only |
@@ -58,7 +58,9 @@ exit door open.
 
 ```
 app/
-  layout.tsx                 root shell, footer attribution
+  globals.css                Tailwind v4 @theme — the design tokens live here
+  layout.tsx                 root shell, header + footer attribution
+  not-found.tsx              404
   page.tsx                   home / surface picker
   gear/page.tsx              Surface 1 — Build Gear Finder
   loot/page.tsx              Surface 2 — instance grid
@@ -67,6 +69,11 @@ app/
   news/page.tsx              Surface 4 — news feed
   sync/page.tsx              admin: sync_runs table, staleness
   api/character/route.ts     the only live third-party passthrough
+
+components/
+  SiteHeader.tsx             nav + season badge (reads config/season.json)
+  SiteFooter.tsx             required attribution + source backlinks
+  ui.tsx                     PageHeader, EmptyState, Banner, Badge
 
 lib/
   db/
@@ -94,8 +101,14 @@ scripts/
   sync-loot.ts
   sync-news.ts
 
-data/app.db                  gitignored
+drizzle/                     generated SQL migrations (committed)
+data/app.db                  gitignored, alongside the WAL files and token cache
 planning/                    these documents
+
+next.config.ts               serverExternalPackages: ['better-sqlite3'] — native module
+postcss.config.mjs           @tailwindcss/postcss
+drizzle.config.ts            schema path + sqlite dialect
+.claude/launch.json          dev-server config for the preview tooling
 ```
 
 ## 4. Where each source is called — and nowhere else
