@@ -26,6 +26,7 @@ export type CandidateItem = {
   slot: string;
   instanceId: number;
   instanceName: string;
+  instanceType?: string;
   encounterName: string | null;
   score: Score;
 };

@@ -1,3 +1,5 @@
+import { Suspense } from 'react';
+
 import { CharacterLookup } from '@/components/CharacterLookup';
 import { PageHeader } from '@/components/ui';
 
@@ -10,7 +12,9 @@ export default function CharacterPage() {
         title="Character Lookup"
         lead="Raider.IO profile — equipped gear, Mythic+ score and raid progression. Cached for 15 minutes."
       />
-      <CharacterLookup />
+      <Suspense fallback={<div className="text-sm text-ink-soft">Loading character lookup…</div>}>
+        <CharacterLookup />
+      </Suspense>
     </>
   );
 }

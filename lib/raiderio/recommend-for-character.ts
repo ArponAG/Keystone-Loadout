@@ -124,6 +124,7 @@ export async function recommendForCharacter(
       isEquippable: schema.items.isEquippable,
       instanceId: schema.instances.id,
       instanceName: schema.instances.name,
+      instanceType: schema.instances.type,
       encounterName: schema.encounters.name,
     })
     .from(schema.itemSources)
@@ -176,6 +177,7 @@ export async function recommendForCharacter(
       slot: row.slot,
       instanceId: row.instanceId,
       instanceName: row.instanceName,
+      instanceType: row.instanceType,
       encounterName: row.encounterName,
       score: scoreStats(readStats(stats), secondaryOrder),
     };

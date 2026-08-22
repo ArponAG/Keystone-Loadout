@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 import { CharacterSearch } from '@/components/CharacterSearch';
 import { SavedCharacters } from '@/components/SavedCharacters';
@@ -53,6 +54,7 @@ function ago(ms: number): string {
 }
 
 export function CharacterLookup() {
+  const searchParams = useSearchParams();
   const [region, setRegion] = useState('us');
   const [realm, setRealm] = useState('');
   const [name, setName] = useState('');
@@ -67,7 +69,17 @@ export function CharacterLookup() {
   // Loaded in an effect because localStorage does not exist during server rendering.
   useEffect(() => {
     setSaved(readSaved());
-  }, []);
+
+    const r = searchParams.get('region') ?? 'us';
+    const rm = searchParams.get('realm');
+    const n = searchParams.get('name');
+    if (rm && n) {
+      setRegion(r);
+      setRealm(rm);
+      setName(n);
+      void lookup({ region: r, realm: rm, name: n });
+    }
+  }, [searchParams]);
 
   const activeKey = data
     ? characterKey(data.normalised.region, data.normalised.realm, data.normalised.name)
@@ -142,63 +154,63 @@ export function CharacterLookup() {
         onRemove={(c) => setSaved(removeCharacter(c.cacheKey))}
       />
 
-      <div className="mb-3 rounded-lg border border-line bg-surface p-4">
+      <div className="mb-4 rounded-xl border border-line bg-surface/80 p-4 shadow-xs">
         <CharacterSearch onPick={onPick} />
       </div>
 
-      <details className="mb-6 rounded-lg border border-line bg-surface">
-        <summary className="cursor-pointer px-4 py-2 text-sm text-ink-soft hover:text-ink">
-          Or enter realm and name manually
+      <details className="group mb-6 rounded-xl border border-line bg-surface/60 transition-colors hover:border-line-strong">
+        <summary className="cursor-pointer px-4 py-2.5 text-sm font-medium text-ink-soft transition-colors hover:text-ink">
+          Or enter realm and character name manually
         </summary>
         <form onSubmit={submit} className="flex flex-wrap items-end gap-3 border-t border-line p-4">
-        <label className="flex flex-col gap-1">
-          <span className="text-xs tracking-wide text-ink-faint uppercase">Region</span>
-          <select
-            value={region}
-            onChange={(e) => setRegion(e.target.value)}
-            className="rounded-md border border-line-strong bg-inset px-2 py-1.5 text-sm text-ink"
+          <label className="flex flex-col gap-1">
+            <span className="text-xs tracking-wide text-ink-faint uppercase font-medium">Region</span>
+            <select
+              value={region}
+              onChange={(e) => setRegion(e.target.value)}
+              className="rounded-md border border-line-strong bg-inset px-2.5 py-1.5 text-sm text-ink focus:border-accent"
+            >
+              {REGIONS.map((r) => (
+                <option key={r} value={r}>
+                  {r.toUpperCase()}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1">
+            <span className="text-xs tracking-wide text-ink-faint uppercase font-medium">Realm</span>
+            <input
+              value={realm}
+              onChange={(e) => setRealm(e.target.value)}
+              placeholder="tarren-mill"
+              required
+              className="rounded-md border border-line-strong bg-inset px-3 py-1.5 text-sm text-ink placeholder:text-ink-faint focus:border-accent"
+            />
+          </label>
+
+          <label className="flex flex-col gap-1">
+            <span className="text-xs tracking-wide text-ink-faint uppercase font-medium">Character</span>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="CharacterName"
+              required
+              className="rounded-md border border-line-strong bg-inset px-3 py-1.5 text-sm text-ink placeholder:text-ink-faint focus:border-accent"
+            />
+          </label>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="rounded-md border border-accent/60 bg-accent-muted/30 px-4 py-1.5 text-sm font-medium text-accent transition-colors hover:bg-accent-muted/50 disabled:opacity-50"
           >
-            {REGIONS.map((r) => (
-              <option key={r} value={r}>
-                {r.toUpperCase()}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="flex flex-col gap-1">
-          <span className="text-xs tracking-wide text-ink-faint uppercase">Realm</span>
-          <input
-            value={realm}
-            onChange={(e) => setRealm(e.target.value)}
-            placeholder="moon-guard"
-            required
-            className="rounded-md border border-line-strong bg-inset px-2 py-1.5 text-sm text-ink placeholder:text-ink-faint"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1">
-          <span className="text-xs tracking-wide text-ink-faint uppercase">Character</span>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Bjornzerker"
-            required
-            className="rounded-md border border-line-strong bg-inset px-2 py-1.5 text-sm text-ink placeholder:text-ink-faint"
-          />
-        </label>
-
-        <button
-          type="submit"
-          disabled={loading}
-          className="rounded-md border border-accent bg-accent-muted/40 px-3 py-1.5 text-sm text-accent transition-colors hover:bg-accent-muted/60 disabled:opacity-50"
-        >
-          {loading ? 'Looking up…' : 'Look up'}
-        </button>
+            {loading ? 'Looking up…' : 'Look up'}
+          </button>
 
           <p className="w-full text-xs text-ink-faint">
-            Realm must be a slug — spaces and apostrophes become hyphens. “Moon Guard” →{' '}
-            <code className="font-mono">moon-guard</code>.
+            Realm must be a slug — spaces and apostrophes become hyphens. “Tarren Mill” →{' '}
+            <code className="font-mono text-accent/80">tarren-mill</code>.
           </p>
         </form>
       </details>
@@ -239,121 +251,152 @@ function Profile({
   const items = profile.gear?.items ?? {};
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {data.stale ? (
         <Banner variant="warn">
           Raider.IO is unreachable — showing data cached {ago(data.cachedAt)}.
         </Banner>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-4 rounded-lg border border-line bg-surface p-4">
+      {/* Character Hero Summary Card */}
+      <div className="flex flex-wrap items-center gap-5 rounded-xl border border-line bg-surface/90 p-5 shadow-xs">
         {profile.thumbnail_url ? (
-          <img
-            src={profile.thumbnail_url}
-            alt=""
-            className="h-16 w-16 rounded-lg object-cover"
-            loading="lazy"
-          />
+          <div className="relative shrink-0">
+            <img
+              src={profile.thumbnail_url}
+              alt=""
+              className="h-16 w-16 rounded-xl border border-line-strong object-cover shadow-sm"
+              loading="lazy"
+            />
+          </div>
         ) : null}
 
         <div className="min-w-0">
-          <h2 className="text-h1 text-ink">
-            <a
-              href={profile.profile_url}
-              target="_blank"
-              rel="noreferrer"
-              className="hover:text-accent"
-            >
-              {profile.name}
-            </a>
-          </h2>
-          <p className="text-sm text-ink-soft">
-            {profile.race} {profile.active_spec_name} {profile.class} ·{' '}
-            {data.normalised.realm} ({data.normalised.region.toUpperCase()})
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-h1 font-bold text-ink">
+              <a
+                href={profile.profile_url}
+                target="_blank"
+                rel="noreferrer"
+                className="hover:text-accent transition-colors"
+              >
+                {profile.name}
+              </a>
+            </h2>
+            <span className="text-xs font-semibold uppercase tracking-wider text-accent/80">
+              {profile.active_spec_name} {profile.class}
+            </span>
+          </div>
+          <p className="mt-0.5 text-sm text-ink-soft">
+            {profile.race} · {data.normalised.realm} ({data.normalised.region.toUpperCase()})
           </p>
         </div>
 
         <div className="ml-auto flex items-center gap-6">
           <Stat label="Item level" value={Math.round(profile.gear?.item_level_equipped ?? 0)} />
-          <Stat label="M+ score" value={scores?.all != null ? Math.round(scores.all) : '—'} />
+          <Stat
+            label="M+ score"
+            value={scores?.all != null ? Math.round(scores.all) : '—'}
+            color={data.mythicPlus?.colour}
+          />
           <button
             type="button"
             onClick={onToggleSave}
-            className={`rounded-md border px-3 py-1.5 text-xs transition-colors ${
+            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all ${
               isSaved
-                ? 'border-accent bg-accent-muted/40 text-accent'
+                ? 'border-accent bg-accent-muted/40 text-accent shadow-xs'
                 : 'border-line-strong bg-raised text-ink-soft hover:border-accent hover:text-accent'
             }`}
             title={isSaved ? 'Remove from saved characters' : 'Pin this character'}
           >
-            {isSaved ? '★ Saved' : '☆ Save'}
+            <svg
+              className={`h-3.5 w-3.5 ${isSaved ? 'fill-accent' : 'fill-none stroke-current'}`}
+              viewBox="0 0 24 24"
+              strokeWidth="2"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z"
+              />
+            </svg>
+            <span>{isSaved ? 'Saved' : 'Pin'}</span>
           </button>
         </div>
       </div>
 
-      <p className="text-xs text-ink-faint">
-        {data.stale ? 'Stale' : 'Cached'} {ago(data.cachedAt)} · Raider.IO last crawled{' '}
-        {profile.last_crawled_at?.slice(0, 16).replace('T', ' ')}
-      </p>
+      <div className="flex items-center justify-between text-xs text-ink-faint px-1">
+        <span>
+          {data.stale ? 'Stale' : 'Data cached'} {ago(data.cachedAt)}
+        </span>
+        {profile.last_crawled_at ? (
+          <span>Raider.IO crawled {profile.last_crawled_at.slice(0, 16).replace('T', ' ')}</span>
+        ) : null}
+      </div>
 
-      <section>
-        <div className="mb-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h3 className="text-h2 text-ink">Equipped gear</h3>
-          <span className="text-sm text-ink-faint">
-            average <span className="tabular text-ink-soft">{data.audit.averageItemLevel}</span>
-            {data.audit.target ? (
-              <>
-                {' · +'}
-                {data.audit.target.keyLevel} keys award{' '}
-                <span className="tabular text-ink-soft">{data.audit.target.vaultItemLevel}</span> in
-                the vault
-                {data.audit.target.cappedAt ? ` (capped at +${data.audit.target.cappedAt})` : ''}
-              </>
+      {/* 1. Equipped Gear Section */}
+      <section className="space-y-4">
+        <div>
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 pb-2.5">
+            <div className="flex items-baseline gap-3">
+              <h3 className="text-h2 font-semibold text-ink">Equipped Gear</h3>
+              <span className="text-sm text-ink-faint">
+                Average <span className="tabular font-medium text-ink">{data.audit.averageItemLevel}</span>
+                {data.audit.target ? (
+                  <>
+                    {' · +'}
+                    {data.audit.target.keyLevel} keys award{' '}
+                    <span className="tabular font-medium text-ink">{data.audit.target.vaultItemLevel}</span> in Vault
+                    {data.audit.target.cappedAt ? ` (max +${data.audit.target.cappedAt})` : ''}
+                  </>
+                ) : null}
+              </span>
+            </div>
+
+            {data.audit.target && data.audit.belowVaultCount > 0 ? (
+              <span className="text-xs font-medium text-stale">
+                {data.audit.belowVaultCount} slot{data.audit.belowVaultCount > 1 ? 's' : ''} below current key vault reward
+              </span>
             ) : null}
-          </span>
+          </div>
+          <div className="h-px w-full bg-gradient-to-r from-accent/20 via-line/20 to-transparent" />
         </div>
 
-        <p className="mb-3 text-xs text-ink-faint">
-          {data.audit.target ? (
-            <>
-              <strong className="text-ink-soft">{data.audit.belowVaultCount}</strong> slots are
-              below what your keys already award.{' '}
-            </>
-          ) : null}
-          Trinkets and weapons are not judged — their value is dominated by procs and weapon
-          damage, which item level does not capture.
-        </p>
-
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           {SLOT_ORDER.filter((slot) => items[slot]).map((slot) => {
             const item = items[slot];
             const slotAudit = data.audit.slots.find((s) => s.slot === slot);
+            const qualityName = QUALITY_BY_INDEX[item.item_quality] ?? null;
+
             return (
               <div
                 key={slot}
-                className="flex items-center gap-3 rounded-md border border-line bg-surface p-2"
+                className="group flex items-center gap-3.5 rounded-xl border border-line bg-surface/80 p-2.5 transition-colors hover:border-line-strong hover:bg-raised"
                 style={
                   slotAudit?.verdict === 'weak'
-                    ? { borderColor: 'color-mix(in srgb, var(--color-stale) 45%, transparent)' }
+                    ? { borderColor: 'color-mix(in srgb, var(--color-stale) 40%, transparent)' }
                     : undefined
                 }
               >
                 <WowIcon
                   src={slugIconUrl(item.icon)}
-                  size={36}
-                  quality={QUALITY_BY_INDEX[item.item_quality] ?? null}
-                  rounded="sm"
+                  size={38}
+                  quality={qualityName}
+                  rounded="md"
                 />
                 <div className="min-w-0 flex-1">
+                  <span className="block text-[11px] font-medium tracking-wider text-ink-faint uppercase">
+                    {slot.replace(/(\d+)$/, ' $1')}
+                  </span>
                   <a
                     href={`https://www.wowhead.com/item=${item.item_id}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="block truncate text-item text-ink hover:text-accent"
+                    className="block truncate text-item font-semibold text-ink group-hover:text-accent transition-colors"
                   >
                     {item.name}
                   </a>
-                  <span className="text-xs text-ink-faint">{slot}</span>
                 </div>
                 <SlotStanding audit={slotAudit} itemLevel={item.item_level} />
               </div>
@@ -362,6 +405,7 @@ function Profile({
         </div>
       </section>
 
+      {/* 2. What to Get Next Section */}
       {data.recommendations ? (
         <NextUpgrades
           recommendations={data.recommendations}
@@ -371,26 +415,32 @@ function Profile({
         />
       ) : null}
 
+      {/* 3. Mythic+ Progression Section */}
       {data.mythicPlus ? (
         <MythicPlusProgression mplus={data.mythicPlus} role={profile.active_spec_role} />
       ) : null}
 
+      {/* 4. Talent Build Section */}
       {data.talents ? (
         <TalentBuildSection build={data.talents} spec={`${profile.active_spec_name} ${profile.class}`} />
       ) : null}
 
+      {/* 5. Raid Progression Section */}
       {profile.raid_progression ? (
-        <section>
-          <h3 className="mb-3 text-h2 text-ink">Raid progression</h3>
-          <div className="overflow-x-auto rounded-lg border border-line bg-surface">
+        <section className="space-y-3">
+          <div>
+            <h3 className="text-h2 font-semibold text-ink pb-2.5">Raid Progression</h3>
+            <div className="h-px w-full bg-gradient-to-r from-accent/20 via-line/20 to-transparent" />
+          </div>
+          <div className="overflow-hidden rounded-xl border border-line bg-surface/80">
             <table className="w-full min-w-[28rem] text-left">
               <tbody>
                 {Object.entries(profile.raid_progression).map(([raid, progress]) => (
-                  <tr key={raid} className="border-b border-line last:border-0">
-                    <td className="px-4 py-2 text-sm text-ink">
+                  <tr key={raid} className="border-b border-line last:border-0 hover:bg-raised transition-colors">
+                    <td className="px-4 py-2.5 text-sm font-medium text-ink">
                       {raid.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
                     </td>
-                    <td className="tabular px-4 py-2 text-right text-sm text-ink-soft">
+                    <td className="tabular px-4 py-2.5 text-right text-sm text-ink-soft font-mono">
                       {progress.summary}
                     </td>
                   </tr>
@@ -404,22 +454,17 @@ function Profile({
   );
 }
 
-function Stat({ label, value }: { label: string; value: string | number }) {
+function Stat({ label, value, color }: { label: string; value: string | number; color?: string }) {
   return (
     <div className="text-right">
-      <div className="tabular text-h1 text-ink">{value}</div>
-      <div className="text-xs tracking-wide text-ink-faint uppercase">{label}</div>
+      <div className="tabular text-h1 font-bold text-ink" style={color ? { color } : undefined}>
+        {value}
+      </div>
+      <div className="text-[11px] font-semibold tracking-wider text-ink-faint uppercase">{label}</div>
     </div>
   );
 }
 
-/**
- * Item level plus how the slot stands.
- *
- * Two signals, kept visually distinct: colour is RELATIVE (versus this character's own
- * average) and the "−N" chip is ABSOLUTE (versus the vault reward their keys already
- * award). Unjudged slots show a plain number and no judgement at all.
- */
 function SlotStanding({ audit, itemLevel }: { audit?: SlotAudit; itemLevel: number }) {
   const colour =
     audit?.verdict === 'weak'
@@ -432,7 +477,7 @@ function SlotStanding({ audit, itemLevel }: { audit?: SlotAudit; itemLevel: numb
     <span className="flex shrink-0 items-center gap-2">
       {audit?.belowVault ? (
         <span
-          className="tabular rounded-sm px-1.5 py-0.5 text-xs"
+          className="tabular rounded-md px-1.5 py-0.5 text-xs font-semibold"
           style={{
             color: 'var(--color-stale)',
             backgroundColor: 'color-mix(in srgb, var(--color-stale) 15%, transparent)',
@@ -443,7 +488,7 @@ function SlotStanding({ audit, itemLevel }: { audit?: SlotAudit; itemLevel: numb
         </span>
       ) : null}
       <span
-        className="tabular text-num"
+        className="tabular text-num font-bold"
         style={{ color: colour }}
         title={
           audit && audit.verdict !== 'unjudged'

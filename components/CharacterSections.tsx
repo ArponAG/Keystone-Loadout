@@ -45,10 +45,13 @@ export function MythicPlusProgression({
   role: string;
 }) {
   return (
-    <section>
-      <h3 className="mb-3 text-h2 text-ink">Mythic+ Progression</h3>
+    <section className="space-y-4">
+      <div>
+        <h3 className="text-h2 font-semibold text-ink pb-2.5">Mythic+ Progression</h3>
+        <div className="h-px w-full bg-gradient-to-r from-accent/20 via-line/20 to-transparent" />
+      </div>
 
-      <div className="mb-3 flex flex-wrap divide-x divide-line rounded-lg border border-line bg-surface">
+      <div className="flex flex-wrap divide-x divide-line rounded-xl border border-line bg-surface/80">
         {/* Raider.IO's own tier colour for the score — the same green/orange their site uses. */}
         <Tile
           value={mplus.score.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
@@ -68,11 +71,11 @@ export function MythicPlusProgression({
       </div>
 
       {mplus.bestRuns.length === 0 ? (
-        <p className="rounded-lg border border-line bg-surface px-4 py-6 text-center text-sm text-ink-faint">
+        <p className="rounded-xl border border-line bg-surface/80 px-4 py-6 text-center text-sm text-ink-faint">
           No Mythic+ runs recorded this season.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-line bg-surface">
+        <div className="overflow-x-auto rounded-xl border border-line bg-surface/80">
           <table className="w-full min-w-[32rem] text-left">
             <thead>
               <tr className="border-b border-line-strong text-xs tracking-wide text-ink-faint uppercase">
@@ -86,7 +89,7 @@ export function MythicPlusProgression({
               {mplus.bestRuns.map((run) => {
                 const timed = run.upgrades > 0;
                 return (
-                  <tr key={run.dungeon} className="border-b border-line last:border-0 hover:bg-raised">
+                  <tr key={run.dungeon} className="border-b border-line last:border-0 hover:bg-raised transition-colors">
                     <td className="px-4 py-2 text-sm text-ink">
                       <a href={run.url} target="_blank" rel="noreferrer" className="hover:text-accent">
                         {run.dungeon}
@@ -118,7 +121,7 @@ export function MythicPlusProgression({
         </div>
       )}
 
-      <p className="mt-2 text-xs text-ink-faint">
+      <p className="text-xs text-ink-faint">
         “Timed” counts best runs per dungeon, not lifetime totals — Raider.IO’s public API
         does not expose the lifetime counters shown on their own site.
       </p>
@@ -148,20 +151,23 @@ export function TalentBuildSection({ build, spec }: { build: TalentBuild; spec: 
   }
 
   return (
-    <section>
-      <div className="mb-3 flex flex-wrap items-center gap-3">
-        <h3 className="text-h2 text-ink">Talent Build</h3>
-        <span className="text-sm text-ink-faint">
-          {spec} · {build.picks.length} talents
-        </span>
-        <button
-          type="button"
-          onClick={copy}
-          className="ml-auto rounded-md border border-line-strong bg-raised px-3 py-1.5 text-xs text-ink-soft transition-colors hover:border-accent hover:text-accent"
-          title="Copy the in-game import string"
-        >
-          {copied ? 'Copied ✓' : 'Copy'}
-        </button>
+    <section className="space-y-4">
+      <div>
+        <div className="flex flex-wrap items-center gap-3 pb-2.5">
+          <h3 className="text-h2 font-semibold text-ink">Talent Build</h3>
+          <span className="text-sm text-ink-faint">
+            {spec} · {build.picks.length} talents
+          </span>
+          <button
+            type="button"
+            onClick={copy}
+            className="ml-auto rounded-md border border-line-strong bg-raised px-3 py-1.5 text-xs font-medium text-ink-soft transition-colors hover:border-accent hover:text-accent"
+            title="Copy the in-game import string"
+          >
+            {copied ? 'Copied' : 'Copy'}
+          </button>
+        </div>
+        <div className="h-px w-full bg-gradient-to-r from-accent/20 via-line/20 to-transparent" />
       </div>
 
       <div className="grid grid-cols-3 divide-x divide-line rounded-lg border border-line bg-surface">
