@@ -94,8 +94,12 @@
 
      --color-selected is a deep slate meant to be used SOLID, not through color-mix. A
      mid-blue thinned to ~28% over the page turned grey-blue and muddy; a darker tone at
-     full strength reads as a lifted surface instead of a stain. */
-  --color-selected: #2a3349;
+     full strength reads as a lifted surface instead of a stain.
+
+     Kept only a little above --color-raised. Selection here marks one card in a short
+     rail the reader is already looking at, so it needs to be findable, not announced —
+     and it has to sit under class-coloured names without competing with them. */
+  --color-selected: #1e2432;
   --color-behind: #b4708c;
 
   /* --- status --- */
