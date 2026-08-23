@@ -1,10 +1,10 @@
-<#
+﻿<#
     Deploy Keystone Loadout to ZimaOS.
 
     Two halves, because the server is reachable two different ways:
-      1. FILES  — Z:\ is the box's /DATA, bridged locally, so copying is a plain file
+      1. FILES  - Z:\ is the box's /DATA, bridged locally, so copying is a plain file
                   copy. Nothing is uploaded and no SSH is involved.
-      2. RUN    — Docker has to be told to rebuild, which needs a shell on the box.
+      2. RUN    - Docker has to be told to rebuild, which needs a shell on the box.
 
     Usage:
       .\deploy.ps1              copy changed files, rebuild, restart
@@ -28,7 +28,7 @@ $Host_     = '192.168.50.94'
 $DockerConfig = '/DATA/AppData/.docker'
 
 # Never copied. node_modules and .next are built inside the image for the server's own
-# architecture, and `data` is the live database — copying the local one over it would
+# architecture, and `data` is the live database - copying the local one over it would
 # overwrite the server's with whatever happens to be on this PC.
 #
 # .env.local is excluded separately below, via /XF rather than /XD: it is placed once and
@@ -46,7 +46,7 @@ if (-not (Test-Path 'Z:\')) {
 Say "Copying source to $ShareRoot ..."
 if (-not (Test-Path $ShareRoot)) { New-Item -ItemType Directory -Path $ShareRoot -Force | Out-Null }
 
-# /MIR mirrors, so files deleted locally are deleted on the server too — otherwise a
+# /MIR mirrors, so files deleted locally are deleted on the server too - otherwise a
 # renamed file lingers there forever and the image keeps building from the stale copy.
 $roboArgs = @(
     $Local, $ShareRoot,
@@ -64,7 +64,7 @@ Say "Files in place." 'Green'
 # The compose file the server uses is the ZimaOS one, under its conventional name.
 Copy-Item (Join-Path $Local 'docker-compose.zimaos.yml') (Join-Path $ShareRoot 'docker-compose.yml') -Force
 
-# Seeded once, never mirrored — see the /XF note above.
+# Seeded once, never mirrored - see the /XF note above.
 $RemoteEnv = Join-Path $ShareRoot '.env.local'
 if (-not (Test-Path $RemoteEnv)) {
     $LocalEnv = Join-Path $Local '.env.local'
@@ -87,11 +87,33 @@ function Invoke-Box([string]$Command) {
     # system" before Docker is even contacted.
     $wrapped = "export DOCKER_CONFIG='$DockerConfig'; mkdir -p '$DockerConfig'; $Command"
 
-    # zima_ssh.py always exits 0 itself — it reports the REMOTE exit status by printing
+    # zima_ssh.py always exits 0 itself - it reports the REMOTE exit status by printing
     # "--EXIT n--" on stderr. Reading $LASTEXITCODE here meant a failed build was
     # reported as a successful deploy, which is precisely the wrong way round.
     $env:PYTHONIOENCODING = 'utf-8'   # Next prints a unicode triangle; cp1252 stdout throws on it.
-    $out = $wrapped | & python 'Z:\zima_ssh.py' 2>&1 | Out-String
+
+    # Run through cmd.exe rather than invoking python directly.
+    #
+    # Windows PowerShell 5.1 raises a NativeCommandError whenever a native process writes
+    # to stderr, and zima_ssh.py ALWAYS does - that is where it reports "--EXIT n--".
+    # None of the obvious escapes work: 'Stop' turns it into a terminating error,
+    # 'Continue' prints a red block on every call, 'SilentlyContinue' drops the stderr
+    # text we actually need, and redirecting to a file still raises it. Letting cmd own
+    # the redirection means PowerShell never sees a stderr stream at all. pwsh 7 behaves
+    # the same way here, so there is one code path rather than a version check.
+    $inFile  = [System.IO.Path]::GetTempFileName()
+    $outFile = [System.IO.Path]::GetTempFileName()
+    $errFile = [System.IO.Path]::GetTempFileName()
+    try {
+        # NOT Set-Content -Encoding UTF8: in 5.1 that writes a BOM, which bash then reads
+        # as part of the first token, so the first line of every remote script silently
+        # fails. UTF8Encoding($false) omits it.
+        [System.IO.File]::WriteAllText($inFile, $wrapped, (New-Object System.Text.UTF8Encoding $false))
+        & cmd.exe /c "python `"Z:\zima_ssh.py`" < `"$inFile`" > `"$outFile`" 2> `"$errFile`"" | Out-Null
+        $out = (Get-Content $outFile -Raw) + "`n" + (Get-Content $errFile -Raw)
+    } finally {
+        Remove-Item $inFile, $outFile, $errFile -ErrorAction SilentlyContinue
+    }
     Write-Host $out.TrimEnd()
 
     if ($out -notmatch '--EXIT\s+0--') {
@@ -103,7 +125,7 @@ if ($NoBuild) {
     Say "Restarting container (no rebuild) ..."
     Invoke-Box "cd $BoxRoot && docker compose up -d"
 } else {
-    Say "Building on the server — first run takes several minutes (better-sqlite3 compiles from source) ..."
+    Say "Building on the server - first run takes several minutes (better-sqlite3 compiles from source) ..."
     Invoke-Box "cd $BoxRoot && docker compose up -d --build"
 }
 
@@ -120,18 +142,18 @@ if ($Setup) {
     # Not run inline: zima_ssh.py caps a command at 300s and the loot sync alone takes
     # ~560s, so the channel times out and takes the visible progress with it. Started
     # detached and polled instead.
-    Say "Syncing game data — around 10 minutes. Polling ..."
+    Say "Syncing game data - around 10 minutes. Polling ..."
     Invoke-Box "cd $BoxRoot && nohup sh -c 'cd $BoxRoot && DOCKER_CONFIG=$DockerConfig docker compose exec -T keystone-loadout npm run sync:all > /tmp/sync.log 2>&1; echo DONE >> /tmp/sync.log' > /dev/null 2>&1 & echo started"
 
     $deadline = (Get-Date).AddMinutes(20)
     while ((Get-Date) -lt $deadline) {
         Start-Sleep -Seconds 30
-        $log = "tail -1 /tmp/sync.log" | & python 'Z:\zima_ssh.py' 2>&1 | Out-String
-        if ($log -match 'DONE') { break }
+        # Invoke-Box throws when the marker is absent, so a successful call means done.
+        try { Invoke-Box 'grep -q DONE /tmp/sync.log' ; break } catch { }
         Say "  ... still syncing" 'DarkGray'
     }
 
-    Invoke-Box "grep -E 'OK —|Error' /tmp/sync.log | tail -6"
+    Invoke-Box "grep -E 'OK |Error' /tmp/sync.log | tail -6"
 }
 
 Say "Done. http://${Host_}:${Port}" 'Green'
