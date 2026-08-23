@@ -98,7 +98,7 @@ export function NextUpgrades({
                   color: 'var(--color-ok)',
                   backgroundColor: 'color-mix(in srgb, var(--color-ok) 15%, transparent)',
                 }}
-                title={`This slot is ${rec.gain} item levels below your vault reward`}
+                title={`${rec.label} is ${rec.currentItemLevel}. Your Great Vault would award ${rec.targetItemLevel}, so this slot is ${rec.gain} item levels behind.`}
               >
                 +{rec.gain} ilvl
               </span>
@@ -218,17 +218,16 @@ function Controls({
       {busy ? <span className="text-xs text-ink-faint">Updating…</span> : null}
 
       {/*
-        Stated once here rather than on every raid row. The +N on each slot header is the
-        gap to the Mythic+ vault reward, which is exact for a key drop but only
-        indicative for a raid one — raid item level depends on the difficulty, which our
-        data does not carry. Saying it per row would be noise; not saying it would let
-        the header's number appear to describe rows it does not.
+        Stated once here rather than on every raid row. Written out in full because the
+        short version ("+N figures compare Mythic+ vault rewards") assumed the reader
+        already knew what +N measured and what a vault reward was — which is exactly the
+        knowledge a new player does not have.
       */}
       {source !== 'mplus' ? (
-        <span className="w-full text-xs text-ink-faint">
-          Raid item levels depend on difficulty — the{' '}
-          <span className="font-medium text-ink-soft">+N</span> figures compare Mythic+
-          vault rewards.
+        <span className="w-full text-xs leading-relaxed text-ink-faint">
+          <span className="font-medium text-ink-soft">+N</span> is how far that slot is
+          behind your Great Vault reward. Raid gear drops at a different item level on
+          each difficulty, so for raid picks it is a rough guide rather than an exact gain.
         </span>
       ) : null}
     </div>
