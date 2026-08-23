@@ -90,8 +90,12 @@
      Deliberately cool, not gold. The accent is gold and it is spent on *actions*;
      reusing it to mean "this row is selected" or "this slot is behind" put a warm wash
      over things that are neither clickable nor warnings, and fought the blue-grey the
-     rest of the page is built from. */
-  --color-selected: #4a7fb5;
+     rest of the page is built from.
+
+     --color-selected is a deep slate meant to be used SOLID, not through color-mix. A
+     mid-blue thinned to ~28% over the page turned grey-blue and muddy; a darker tone at
+     full strength reads as a lifted surface instead of a stain. */
+  --color-selected: #2a3349;
   --color-behind: #b4708c;
 
   /* --- status --- */

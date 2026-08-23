@@ -81,8 +81,8 @@ export type Recommendations = {
 /** Candidates shown per slot when the caller expresses no preference. */
 export const DEFAULT_PER_SLOT = 3;
 
-/** What the user may choose from. More than eight is a loot table, not advice. */
-export const PER_SLOT_CHOICES = [3, 5, 8] as const;
+/** What the user may choose from. Past three it stops being advice and becomes a list. */
+export const PER_SLOT_CHOICES = [1, 2, 3] as const;
 
 /** Raider.IO slots are finger1/finger2/trinket1; our loot table stores finger/trinket. */
 export function toLootSlot(characterSlot: string): string {

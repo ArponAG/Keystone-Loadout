@@ -47,7 +47,7 @@ export function SavedCharacters({
               className="group relative flex items-center rounded-lg transition-colors"
               style={
                 active
-                  ? { backgroundColor: 'color-mix(in srgb, var(--color-selected) 28%, transparent)' }
+                  ? { backgroundColor: 'var(--color-selected)' }
                   : undefined
               }
             >
