@@ -139,6 +139,7 @@ export async function GET(request: Request) {
   const recommendations = await recommendForCharacter(audit, resolved, secondaryOrder, {
     perSlot,
     source,
+    equippedItemIds: Object.values(profile.gear?.items ?? {}).map((i) => i.item_id),
   });
 
   return NextResponse.json(

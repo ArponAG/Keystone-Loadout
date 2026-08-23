@@ -29,6 +29,16 @@ export type CandidateItem = {
   instanceType?: string;
   encounterName: string | null;
   score: Score;
+  /**
+   * Already worn in this slot.
+   *
+   * Not filtered out, because re-looting the same item from a higher key is a genuine
+   * upgrade — item level comes from the key, not the item. But it is labelled, because
+   * an unmarked "go get Poison-Proof Stompers" to someone already wearing Poison-Proof
+   * Stompers reads as a broken app, and because it carries real information: the best
+   * fit for this slot is already on you, so the problem is key level, not the item.
+   */
+  equipped?: boolean;
 };
 
 export type SlotRecommendation = {
@@ -114,6 +124,28 @@ export function buildRecommendations(
 
   // Biggest gap first: the most item levels for one drop.
   bySlot.sort((a, b) => b.gain - a.gain);
+
+  /*
+    Collapse paired slots.
+
+    finger1 and finger2 both draw from the loot slot 'finger', so they were handed
+    byte-identical candidate lists — the same eight rings printed twice, sixteen rows to
+    say eight things. Trinkets would do the same if they were judged.
+
+    Keeping the worse of the pair is the useful half: if you are replacing a ring, you
+    replace the weaker one, and the stronger one's list was the same anyway. bySlot is
+    already sorted by gain, so the first occurrence is the one to keep.
+  */
+  const seenLootSlot = new Set<string>();
+  const collapsed = bySlot.filter((rec) => {
+    const loot = toLootSlot(rec.slot);
+    if (seenLootSlot.has(loot)) return false;
+    seenLootSlot.add(loot);
+    return true;
+  });
+
+  bySlot.length = 0;
+  bySlot.push(...collapsed);
 
   // Which single dungeon covers the most ground? This is the question a new player
   // actually has — "what should I run tonight" — and it is not answerable from a

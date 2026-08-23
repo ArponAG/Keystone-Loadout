@@ -47,6 +47,8 @@ export function NextUpgrades({
       onPerSlot={onPerSlot}
       source={source}
       onSource={onSource}
+      order={order}
+      onReorder={onReorder}
       busy={busy}
     />
   );
@@ -124,7 +126,19 @@ export function NextUpgrades({
         </button>
       ) : null}
 
-      <StatPriority order={order} onReorder={onReorder} />
+      <p className="mt-3 text-xs leading-relaxed text-ink-faint">
+        The percentage is how much of an item’s secondary stats land on your priority — a
+        heuristic, not a simulation. For a real answer, sim it on{' '}
+        <a
+          href="https://www.raidbots.com/simbot/droptimizer"
+          target="_blank"
+          rel="noreferrer"
+          className="text-accent hover:underline"
+        >
+          Raidbots
+        </a>
+        .
+      </p>
     </section>
   );
 }
@@ -162,12 +176,16 @@ function Controls({
   onPerSlot,
   source,
   onSource,
+  order,
+  onReorder,
   busy,
 }: {
   perSlot: number;
   onPerSlot: (n: number) => void;
   source: LootSource;
   onSource: (v: LootSource) => void;
+  order: SecondaryKey[];
+  onReorder: (next: SecondaryKey[]) => void;
   busy: boolean;
 }) {
   return (
@@ -215,6 +233,38 @@ function Controls({
         </span>
       </span>
 
+      {/*
+        Stat priority sits with the other controls rather than in a collapsed section at
+        the bottom. It changes the order of every list above it, so hiding it behind a
+        toggle put a control that reshapes the whole answer below the answer itself —
+        and a new player never found out the ranking was tunable at all.
+      */}
+      <span className="flex items-center gap-2">
+        <span className="text-[11px] tracking-wide text-ink-faint uppercase">Stat priority</span>
+        <span className="flex gap-1">
+          {order.map((key, index) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => {
+                const next = [...order];
+                next.splice(index, 1);
+                next.unshift(key);
+                onReorder(next);
+              }}
+              className={`rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+                index === 0
+                  ? 'bg-accent-muted/45 text-accent'
+                  : 'bg-raised text-ink-soft hover:text-ink'
+              }`}
+              title={`Rank ${SECONDARY_LABEL[key]} first`}
+            >
+              {SECONDARY_LABEL[key]}
+            </button>
+          ))}
+        </span>
+      </span>
+
       {busy ? <span className="text-xs text-ink-faint">Updating…</span> : null}
 
       {/*
@@ -247,9 +297,7 @@ function BestRuns({ recommendations }: { recommendations: Recommendations }) {
 
   return (
     <div className="mb-3 rounded-xl bg-surface/50 p-3.5">
-      <p className="mb-2 text-[11px] tracking-wide text-ink-faint uppercase">
-        Best value runs — one dungeon, several slots
-      </p>
+      <p className="mb-2 text-[11px] tracking-wide text-ink-faint uppercase">Run these first</p>
       <div className="flex flex-wrap gap-2">
         {top.map((d) => (
           <span
@@ -311,58 +359,25 @@ function Candidate({ item }: { item: CandidateItem }) {
         </span>
       </div>
 
+      {/*
+        Worn already. Kept in the list because re-looting from a higher key is a real
+        upgrade, but marked — telling someone to farm the boots they have on reads as a
+        bug, and the label carries the actual message: the item is right, the key is not.
+      */}
+      {item.equipped ? (
+        <span
+          className="shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-semibold"
+          style={{
+            color: 'var(--color-selected)',
+            backgroundColor: 'color-mix(in srgb, var(--color-selected) 20%, transparent)',
+          }}
+          title="You already wear this. It can still drop at a higher item level from a higher key."
+        >
+          Worn
+        </span>
+      ) : null}
+
       <FitScoreBadge score={item.score} />
     </li>
-  );
-}
-
-function StatPriority({
-  order,
-  onReorder,
-}: {
-  order: SecondaryKey[];
-  onReorder: (next: SecondaryKey[]) => void;
-}) {
-  return (
-    <details className="group mt-3 rounded-xl bg-surface/50">
-      <summary className="cursor-pointer px-3.5 py-2.5 text-sm font-medium text-ink-soft transition-colors hover:text-ink">
-        Know your stat priority? Tune the percentages
-      </summary>
-      <div className="space-y-3 px-3.5 pb-3.5">
-        <p className="text-xs leading-relaxed text-ink-faint">
-          The percentage reflects how much of an item’s secondary stats match your priority.
-          It does not change which slot is furthest behind — that is item level. For a real
-          answer, sim it on{' '}
-          <a
-            href="https://www.raidbots.com/simbot/droptimizer"
-            target="_blank"
-            rel="noreferrer"
-            className="text-accent hover:underline"
-          >
-            Raidbots
-          </a>
-          .
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {order.map((key, index) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => {
-                const next = [...order];
-                next.splice(index, 1);
-                next.unshift(key);
-                onReorder(next);
-              }}
-              className="rounded-lg bg-raised px-3 py-1.5 text-xs font-medium text-ink-soft transition-colors hover:text-accent"
-              title={`Move ${SECONDARY_LABEL[key]} to priority 1`}
-            >
-              <span className="tabular mr-1.5 font-bold text-accent">{index + 1}</span>
-              {SECONDARY_LABEL[key]}
-            </button>
-          ))}
-        </div>
-      </div>
-    </details>
   );
 }

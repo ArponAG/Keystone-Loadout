@@ -107,6 +107,8 @@ export type RecommendOptions = {
   /** Candidates listed per slot. */
   perSlot?: number;
   source?: LootSource;
+  /** Everything the character currently wears, so those candidates can be labelled. */
+  equippedItemIds?: number[];
 };
 
 /**
@@ -135,7 +137,10 @@ export async function recommendForCharacter(
   const { perSlot, source = 'all' } = options;
 
   const inMplus = eq(schema.instances.inCurrentRotation, 1);
-  const inRaid = eq(schema.instances.type, 'raid');
+  // NOT `type = 'raid'`: that spans the whole expansion, so it offered previous-tier
+  // drops (base item level 197) as upgrades over the current tier's 219, plus the World
+  // Bosses aggregate. See schema.instances.inCurrentTier.
+  const inRaid = eq(schema.instances.inCurrentTier, 1);
 
   // Non-rotation dungeons are excluded from every mode: they are not farmable on a key
   // this season and are not part of the raid answer either.
@@ -175,6 +180,10 @@ export async function recommendForCharacter(
     .from(schema.itemStats);
   const statsByItem = groupStatsByItem(statRows);
 
+  // Item ids currently worn, so candidates can be marked rather than silently repeated
+  // back at the player as things to go and farm.
+  const equippedIds = new Set(options.equippedItemIds ?? []);
+
   const seen = new Set<number>();
   const bySlot = new Map<string, CandidateItem[]>();
 
@@ -210,6 +219,7 @@ export async function recommendForCharacter(
       instanceType: row.instanceType,
       encounterName: row.encounterName,
       score: scoreStats(readStats(stats), secondaryOrder),
+      equipped: equippedIds.has(row.id),
     };
 
     const list = bySlot.get(row.slot);

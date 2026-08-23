@@ -8,10 +8,9 @@ export const dynamic = 'force-dynamic';
 export default function CharacterPage() {
   return (
     <>
-      <PageHeader
-        title="Character Lookup"
-        lead="Raider.IO profile — equipped gear, Mythic+ score and raid progression. Cached for 15 minutes."
-      />
+      {/* No lead line: the search box below says what to do, and the sections name
+          themselves. The sentence restated what was already on screen. */}
+      <PageHeader title="Character Lookup" />
       <Suspense fallback={<div className="text-sm text-ink-soft">Loading character lookup…</div>}>
         <CharacterLookup />
       </Suspense>

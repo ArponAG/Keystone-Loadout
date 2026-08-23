@@ -86,6 +86,14 @@
   --color-fit-0: #f87171;
   --color-fit-none: #6b7285;
 
+  /* --- selection & attention ---
+     Deliberately cool, not gold. The accent is gold and it is spent on *actions*;
+     reusing it to mean "this row is selected" or "this slot is behind" put a warm wash
+     over things that are neither clickable nor warnings, and fought the blue-grey the
+     rest of the page is built from. */
+  --color-selected: #4a7fb5;
+  --color-behind: #b4708c;
+
   /* --- status --- */
   --color-ok: #4ade80;
   --color-stale: #facc15;

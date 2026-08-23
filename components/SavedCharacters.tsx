@@ -44,9 +44,12 @@ export function SavedCharacters({
           return (
             <div
               key={character.cacheKey}
-              className={`group relative flex items-center rounded-lg transition-colors ${
-                active ? 'bg-accent-muted/35' : 'bg-raised/50 hover:bg-raised'
-              }`}
+              className="group relative flex items-center rounded-lg transition-colors"
+              style={
+                active
+                  ? { backgroundColor: 'color-mix(in srgb, var(--color-selected) 28%, transparent)' }
+                  : undefined
+              }
             >
               <button
                 type="button"

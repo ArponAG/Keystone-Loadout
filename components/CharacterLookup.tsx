@@ -360,9 +360,12 @@ function Profile({
                   past — and with the softer line tokens it had become the loudest edge on
                   the page. Fill marks the row without fencing it off.
                 */
-                className={`group flex items-center gap-3 rounded-xl p-2.5 transition-colors ${
-                  weak ? 'bg-stale/8 hover:bg-stale/12' : 'bg-surface/70 hover:bg-raised'
-                }`}
+                className="group flex items-center gap-3 rounded-xl bg-surface/70 p-2.5 transition-colors hover:bg-raised"
+                style={
+                  weak
+                    ? { backgroundColor: 'color-mix(in srgb, var(--color-behind) 12%, transparent)' }
+                    : undefined
+                }
               >
                 <WowIcon src={slugIconUrl(item.icon)} size={40} quality={qualityName} rounded="md" />
 

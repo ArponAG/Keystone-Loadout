@@ -75,6 +75,27 @@ async function run() {
     const rotationIds = new Set(pool.encounters.map((e) => e.id));
     const rotationNames = new Set(pool.encounters.map((e) => e.name));
 
+    /*
+      The raid-side equivalent of mplus-chest.
+
+      Raidbots publishes "Season 1 Raids" / "Season 2 Raids" aggregates whose encounters
+      are the BOSSES of that season's raids (unlike mplus-chest, whose encounters are
+      dungeons). So the current tier is any instance owning one of these encounter ids.
+
+      This matters because `type = 'raid'` covers the whole expansion — previous tier and
+      the World Bosses aggregate included — and using it to source recommendations
+      offered previous-tier gear (base item level 197) against the current tier's 219.
+    */
+    const raidPool = all.find((i) => i.name === `${season.season.shortName} Raids`);
+    if (!raidPool?.encounters?.length) {
+      throw new Error(
+        `Raidbots has no "${season.season.shortName} Raids" aggregate — cannot determine ` +
+          'the current raid tier. Check config/season.json shortName against instances.json.',
+      );
+    }
+    const currentTierEncounterIds = new Set(raidPool.encounters.map((e) => e.id));
+    ctx.log(`Current raid tier: ${currentTierEncounterIds.size} encounters in "${raidPool.name}".`);
+
     // --- 2. Raider.IO: season metadata + independent rotation --------------
     ctx.log('Fetching Raider.IO season data...');
     const rio = await getJson<{ seasons: RioSeason[] }>(
@@ -148,7 +169,7 @@ async function run() {
     db.transaction((tx) => {
       // Clear rotation flags first: a dungeon dropped from the pool must lose its
       // badge, but is never hard-deleted — old loot stays browsable.
-      tx.update(schema.instances).set({ inCurrentRotation: 0 }).run();
+      tx.update(schema.instances).set({ inCurrentRotation: 0, inCurrentTier: 0 }).run();
 
       // Self-healing: remove synthetic encounters written before they were filtered.
       // Negative ids are never valid journal encounters, so this is unambiguous.
@@ -170,6 +191,12 @@ async function run() {
             tileUrl: m.tileUrl,
             orderIndex: m.orderIndex,
             inCurrentRotation: rotationIds.has(inst.id) ? 1 : 0,
+            // A raid is current-tier when any of its bosses is in the season aggregate.
+            inCurrentTier:
+              inst.type === 'raid' &&
+              (inst.encounters ?? []).some((e) => currentTierEncounterIds.has(e.id))
+                ? 1
+                : 0,
             syncedAt,
           })
           .onConflictDoUpdate({
@@ -183,6 +210,11 @@ async function run() {
               tileUrl: sql`COALESCE(${m.tileUrl}, ${schema.instances.tileUrl})`,
               orderIndex: m.orderIndex,
               inCurrentRotation: rotationIds.has(inst.id) ? 1 : 0,
+              inCurrentTier:
+                inst.type === 'raid' &&
+                (inst.encounters ?? []).some((e) => currentTierEncounterIds.has(e.id))
+                  ? 1
+                  : 0,
               syncedAt,
             },
           })

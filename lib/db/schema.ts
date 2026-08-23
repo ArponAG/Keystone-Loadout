@@ -25,6 +25,18 @@ export const instances = sqliteTable(
     /** Is this in THIS season's M+ pool? Not an expansion filter — the current
      *  rotation spans four expansions. */
     inCurrentRotation: integer('in_current_rotation').notNull().default(0),
+  /**
+   * This raid belongs to the CURRENT season's tier.
+   *
+   * `type = 'raid'` alone is far too broad: every raid of the expansion carries it,
+   * including the previous tier and the world-boss aggregate. Filtering on it meant
+   * recommending Voidspire and Dreamrift drops — previous-tier gear at base item level
+   * 197 against the current tier's 219 — as upgrades.
+   *
+   * Set from Raidbots' "Season N Raids" aggregate, which is the raid-side equivalent of
+   * the "mplus-chest" entry the rotation flag already comes from.
+   */
+  inCurrentTier: integer('in_current_tier').notNull().default(0),
     syncedAt: integer('synced_at').notNull(),
   },
   (t) => [index('idx_instances_rotation').on(t.inCurrentRotation)],

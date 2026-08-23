@@ -229,3 +229,35 @@ test('a raid-only slot is still a recommendation', () => {
   assert.equal(recs.bySlot.length, 1);
   assert.equal(recs.byDungeon.length, 0, 'and contributes no dungeon to run');
 });
+
+test('paired slots are collapsed to the worse one', () => {
+  // finger1 and finger2 both draw from loot slot 'finger', so both were handed the same
+  // candidate list — sixteen rows to say eight things. Keep the slot further behind.
+  const recs = buildRecommendations(
+    [
+      { slot: 'finger1', itemLevel: 300, belowVault: 15 },
+      { slot: 'finger2', itemLevel: 279, belowVault: 36 },
+    ],
+    315,
+    () => [item(1, 'Great Ring', 'finger', 100, 'Altar of Fangs', 90)],
+    [],
+  );
+
+  assert.equal(recs.bySlot.length, 1, 'one entry, not two identical ones');
+  assert.equal(recs.bySlot[0].slot, 'finger2', 'the weaker ring is the one to replace');
+  assert.equal(recs.bySlot[0].gain, 36);
+});
+
+test('distinct slots are never collapsed', () => {
+  const recs = buildRecommendations(
+    [
+      { slot: 'head', itemLevel: 300, belowVault: 15 },
+      { slot: 'feet', itemLevel: 290, belowVault: 25 },
+    ],
+    315,
+    (slot) => [item(1, `${slot} item`, slot, 100, 'Altar of Fangs', 90)],
+    [],
+  );
+
+  assert.deepEqual(recs.bySlot.map((r) => r.slot), ['feet', 'head']);
+});

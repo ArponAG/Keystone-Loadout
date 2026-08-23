@@ -1,0 +1,1 @@
+ALTER TABLE `instances` ADD `in_current_tier` integer DEFAULT 0 NOT NULL;

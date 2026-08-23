@@ -261,22 +261,41 @@ export function TalentBuildSection({ build, spec }: { build: TalentBuild; spec: 
           {spec} · {build.picks.length} talents
         </span>
         {/*
-          The import string is the single most useful thing in this section — it pastes
-          straight into the game — so the copy control says what it copies rather than
-          hiding behind a bare "Copy" and a title attribute.
+          Icon only. With no label the state has to live in the glyph, so a successful
+          copy swaps the clipboard for a tick — the one moment feedback actually matters,
+          since nothing else on screen confirms a clipboard write happened.
         */}
         <button
           type="button"
           onClick={copy}
-          className="ml-auto rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
+          aria-label={copied ? 'Import string copied' : 'Copy the in-game import string'}
+          title={copied ? 'Copied' : 'Copy the in-game import string'}
+          className="ml-auto grid h-8 w-8 shrink-0 place-items-center rounded-lg transition-colors"
           style={
             copied
-              ? { color: 'var(--color-ok)', backgroundColor: 'color-mix(in srgb, var(--color-ok) 15%, transparent)' }
+              ? { color: 'var(--color-ok)', backgroundColor: 'color-mix(in srgb, var(--color-ok) 18%, transparent)' }
               : { color: 'var(--color-accent)', backgroundColor: 'var(--color-accent-muted)' }
           }
-          title="Copy the in-game import string to your clipboard"
         >
-          {copied ? 'Copied to clipboard' : 'Copy import string'}
+          <svg
+            className="h-4 w-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.9"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            {copied ? (
+              <path d="M20 6L9 17l-5-5" />
+            ) : (
+              <>
+                <rect x="9" y="9" width="11" height="11" rx="2" />
+                <path d="M5 15V5a2 2 0 012-2h10" />
+              </>
+            )}
+          </svg>
         </button>
       </div>
 
@@ -303,14 +322,6 @@ export function TalentBuildSection({ build, spec }: { build: TalentBuild; spec: 
         })}
       </div>
 
-      <details className="mt-2 rounded-xl bg-surface/50">
-        <summary className="cursor-pointer px-3.5 py-2.5 text-sm text-ink-soft transition-colors hover:text-ink">
-          Show the import string
-        </summary>
-        <p className="px-3.5 pb-3.5 font-mono text-xs break-all text-ink-faint">
-          {build.importString}
-        </p>
-      </details>
     </section>
   );
 }
