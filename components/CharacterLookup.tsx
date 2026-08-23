@@ -9,7 +9,8 @@ import { MythicPlusProgression, TalentBuildSection } from '@/components/Characte
 import { NextUpgrades } from '@/components/NextUpgrades';
 import { WowIcon } from '@/components/WowIcon';
 import { Banner } from '@/components/ui';
-import { slugIconUrl, wowheadItemUrl } from '@/lib/domain/icons';
+import { ago, realmLabel } from '@/lib/domain/format';
+import { classColor, slugIconUrl, wowheadItemUrl } from '@/lib/domain/icons';
 import {
   characterKey,
   readSaved,
@@ -22,8 +23,6 @@ import type { Recommendations } from '@/lib/domain/recommend';
 import type { SecondaryKey } from '@/lib/domain/stats';
 import type { ResolvedBuild } from '@/lib/raiderio/recommend-for-character';
 import type { CharacterProfile, MythicPlus, TalentBuild } from '@/lib/raiderio/character';
-
-const REGIONS = ['us', 'eu', 'tw', 'kr'] as const;
 
 /** Raider.IO returns gear keyed by slot name, in no particular order. */
 const SLOT_ORDER = [
@@ -46,18 +45,13 @@ type Response = {
   normalised: { region: string; realm: string; name: string };
 };
 
-function ago(ms: number): string {
-  const d = Date.now() - ms;
-  if (d < 60_000) return 'just now';
-  if (d < 3_600_000) return `${Math.floor(d / 60_000)} min ago`;
-  return `${Math.floor(d / 3_600_000)} h ago`;
+/** Separator between the header's metadata fragments. */
+function Dot() {
+  return <span className="text-line-strong">·</span>;
 }
 
 export function CharacterLookup() {
   const searchParams = useSearchParams();
-  const [region, setRegion] = useState('us');
-  const [realm, setRealm] = useState('');
-  const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<Response | null>(null);
@@ -70,15 +64,12 @@ export function CharacterLookup() {
   useEffect(() => {
     setSaved(readSaved());
 
+    // Direct URL entry — /character?region=eu&realm=turalyon&name=Foo. This is the way
+    // in when the typeahead cannot find someone, now that there is no manual form.
     const r = searchParams.get('region') ?? 'us';
     const rm = searchParams.get('realm');
     const n = searchParams.get('name');
-    if (rm && n) {
-      setRegion(r);
-      setRealm(rm);
-      setName(n);
-      void lookup({ region: r, realm: rm, name: n });
-    }
+    if (rm && n) void lookup({ region: r, realm: rm, name: n });
   }, [searchParams]);
 
   const activeKey = data
@@ -113,16 +104,7 @@ export function CharacterLookup() {
     }
   }
 
-  function submit(event: React.FormEvent) {
-    event.preventDefault();
-    void lookup({ region, realm, name });
-  }
-
-  /** Picking a suggestion fills the manual fields and looks the character up at once. */
   function onPick(pick: { region: string; realm: string; name: string }) {
-    setRegion(pick.region);
-    setRealm(pick.realm);
-    setName(pick.name);
     void lookup(pick);
   }
 
@@ -154,66 +136,7 @@ export function CharacterLookup() {
         onRemove={(c) => setSaved(removeCharacter(c.cacheKey))}
       />
 
-      <div className="mb-4 rounded-xl border border-line bg-surface/80 p-4 shadow-xs">
-        <CharacterSearch onPick={onPick} />
-      </div>
-
-      <details className="group mb-6 rounded-xl border border-line bg-surface/60 transition-colors hover:border-line-strong">
-        <summary className="cursor-pointer px-4 py-2.5 text-sm font-medium text-ink-soft transition-colors hover:text-ink">
-          Or enter realm and character name manually
-        </summary>
-        <form onSubmit={submit} className="flex flex-wrap items-end gap-3 border-t border-line p-4">
-          <label className="flex flex-col gap-1">
-            <span className="text-xs tracking-wide text-ink-faint uppercase font-medium">Region</span>
-            <select
-              value={region}
-              onChange={(e) => setRegion(e.target.value)}
-              className="rounded-md border border-line-strong bg-inset px-2.5 py-1.5 text-sm text-ink focus:border-accent"
-            >
-              {REGIONS.map((r) => (
-                <option key={r} value={r}>
-                  {r.toUpperCase()}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="flex flex-col gap-1">
-            <span className="text-xs tracking-wide text-ink-faint uppercase font-medium">Realm</span>
-            <input
-              value={realm}
-              onChange={(e) => setRealm(e.target.value)}
-              placeholder="tarren-mill"
-              required
-              className="rounded-md border border-line-strong bg-inset px-3 py-1.5 text-sm text-ink placeholder:text-ink-faint focus:border-accent"
-            />
-          </label>
-
-          <label className="flex flex-col gap-1">
-            <span className="text-xs tracking-wide text-ink-faint uppercase font-medium">Character</span>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="CharacterName"
-              required
-              className="rounded-md border border-line-strong bg-inset px-3 py-1.5 text-sm text-ink placeholder:text-ink-faint focus:border-accent"
-            />
-          </label>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="rounded-md border border-accent/60 bg-accent-muted/30 px-4 py-1.5 text-sm font-medium text-accent transition-colors hover:bg-accent-muted/50 disabled:opacity-50"
-          >
-            {loading ? 'Looking up…' : 'Look up'}
-          </button>
-
-          <p className="w-full text-xs text-ink-faint">
-            Realm must be a slug — spaces and apostrophes become hyphens. “Tarren Mill” →{' '}
-            <code className="font-mono text-accent/80">tarren-mill</code>.
-          </p>
-        </form>
-      </details>
+      <CharacterSearch onPick={onPick} busy={loading} />
 
       {error ? (
         <Banner variant="error">{error}</Banner>
@@ -261,34 +184,46 @@ function Profile({
       {/* Character Hero Summary Card */}
       <div className="flex flex-wrap items-center gap-5 rounded-xl border border-line bg-surface/90 p-5 shadow-xs">
         {profile.thumbnail_url ? (
-          <div className="relative shrink-0">
-            <img
-              src={profile.thumbnail_url}
-              alt=""
-              className="h-16 w-16 rounded-xl border border-line-strong object-cover shadow-sm"
-              loading="lazy"
-            />
-          </div>
+          <img
+            src={profile.thumbnail_url}
+            alt=""
+            className="h-16 w-16 shrink-0 rounded-xl object-cover"
+            loading="lazy"
+          />
         ) : null}
 
         <div className="min-w-0">
-          <div className="flex items-center gap-2.5">
-            <h2 className="text-h1 font-bold text-ink">
-              <a
-                href={profile.profile_url}
-                target="_blank"
-                rel="noreferrer"
-                className="hover:text-accent transition-colors"
-              >
-                {profile.name}
-              </a>
-            </h2>
-            <span className="text-xs font-semibold uppercase tracking-wider text-accent/80">
+          {/* The name takes the class colour, as it does in the saved rail and the search
+              results. It also makes the spec/class label beside it a caption rather than
+              the only place the class is stated. */}
+          <h2 className="text-h1 font-bold" style={{ color: classColor(profile.class) }}>
+            <a
+              href={profile.profile_url}
+              target="_blank"
+              rel="noreferrer"
+              className="transition-opacity hover:opacity-80"
+            >
+              {profile.name}
+            </a>
+          </h2>
+
+          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-soft">
+            <span className="font-medium text-ink">
               {profile.active_spec_name} {profile.class}
             </span>
-          </div>
-          <p className="mt-0.5 text-sm text-ink-soft">
-            {profile.race} · {data.normalised.realm} ({data.normalised.region.toUpperCase()})
+            <Dot />
+            <span>{profile.race}</span>
+            <Dot />
+            <span>
+              {realmLabel(data.normalised.realm)} ({data.normalised.region.toUpperCase()})
+            </span>
+            {/* Cache age lives here rather than in its own strip below the card: it is a
+                footnote about this character, not a section of the page. The Raider.IO
+                crawl timestamp that used to sit beside it said nothing actionable. */}
+            <Dot />
+            <span className="text-ink-faint">
+              {data.stale ? 'stale, cached' : 'cached'} {ago(data.cachedAt)}
+            </span>
           </p>
         </div>
 
@@ -332,15 +267,6 @@ function Profile({
             </svg>
           </button>
         </div>
-      </div>
-
-      <div className="flex items-center justify-between text-xs text-ink-faint px-1">
-        <span>
-          {data.stale ? 'Stale' : 'Data cached'} {ago(data.cachedAt)}
-        </span>
-        {profile.last_crawled_at ? (
-          <span>Raider.IO crawled {profile.last_crawled_at.slice(0, 16).replace('T', ' ')}</span>
-        ) : null}
       </div>
 
       {/* 1. Equipped Gear Section */}

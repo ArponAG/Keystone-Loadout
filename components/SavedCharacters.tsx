@@ -1,15 +1,8 @@
 'use client';
 
+import { realmLabel } from '@/lib/domain/format';
 import { classColor } from '@/lib/domain/icons';
 import type { SavedCharacter } from '@/lib/saved-characters';
-
-/** "tarren-mill" is how realms travel; "Tarren Mill" is how they should read. */
-function realmLabel(realm: string): string {
-  return realm
-    .split('-')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-}
 
 /**
  * The pinned-character rail. Renders from the stored snapshot so it appears instantly

@@ -9,9 +9,13 @@
   --color-raised: #1e212b;
   --color-inset: #0a0b0e;
 
-  /* --- lines --- */
-  --color-line: #2a2e3a;
-  --color-line-strong: #3a3f4f;
+  /* --- lines ---
+     Kept close to the surfaces they sit on. Borders here separate regions of a dense,
+     dark page; they are never the only signal for anything, so they can afford to be
+     quiet. Raising their contrast turns every card into a boxed-in compartment and the
+     page reads as a wireframe. Change these two and the whole app follows. */
+  --color-line: #23262f;
+  --color-line-strong: #30343f;
 
   /* --- text --- */
   --color-ink: #e8eaf0;
