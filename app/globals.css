@@ -1,8 +1,20 @@
 @import 'tailwindcss';
 
 /* Design tokens — see planning/06-design-extract.md.
-   Tailwind v4 takes theme config in CSS, not tailwind.config.ts. */
-@theme {
+   Tailwind v4 takes theme config in CSS, not tailwind.config.ts.
+
+   `static` is load-bearing. By default Tailwind emits only the theme variables it can
+   SEE used, by scanning source for literal names. Several helpers here build a variable
+   name at runtime — classColor() returns `var(--color-class-${slug})`, trackColor() the
+   same for tracks — and a name assembled from a template is invisible to that scan, so
+   those tokens were dropped from the stylesheet and the var() resolved to nothing.
+
+   That failed silently and selectively: --color-track-hero and --color-track-myth
+   survived only because two unrelated test assertions happened to contain them as
+   literals, so Hero and Myth items rendered a coloured badge while Champion and Veteran
+   rendered an invisible one. `static` emits every token unconditionally, which is a few
+   hundred bytes for the guarantee that a dynamic var() always resolves. */
+@theme static {
   /* --- surfaces --- */
   --color-base: #0e0f13;
   --color-surface: #16181f;
@@ -54,15 +66,17 @@
   --color-class-warrior: #c69b6d;
 
   /* --- upgrade tracks ---
-     A ladder, so the colours are a ladder too: cool and dim at the bottom, hot and
-     bright at the top. Deliberately NOT the item-quality colours — a Hero-track item
-     and an epic item are different claims, and reusing purple would conflate them. */
-  --color-track-explorer: #8a9099;
-  --color-track-adventurer: #6ea86e;
-  --color-track-veteran: #4a9ed4;
-  --color-track-champion: #9a6fd8;
-  --color-track-hero: #e0913c;
-  --color-track-myth: #e05c5c;
+     Follows WoW's own quality ladder — grey, white, green, blue, purple, gold — because
+     that progression is already in every player's head, so the badge needs no legend.
+     Each is lifted off the canonical quality hex toward the light end: the real values
+     (#0070dd rare, #a335ee epic) are chosen for coloured TEXT on a light-ish tooltip and
+     go muddy as a small tinted pill on #16181f. */
+  --color-track-explorer: #9aa0aa;
+  --color-track-adventurer: #e8eaf0;
+  --color-track-veteran: #52e07a;
+  --color-track-champion: #3a9bea;
+  --color-track-hero: #b76bf2;
+  --color-track-myth: #ffc93c;
 
   /* --- fit score ramp --- */
   --color-fit-90: #4ade80;

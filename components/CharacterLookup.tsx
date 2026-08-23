@@ -273,70 +273,77 @@ function Profile({
       </div>
 
       {/* 1. Equipped Gear Section */}
-      <section className="space-y-4">
-        <div>
-          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 pb-2.5">
-            <div className="flex items-baseline gap-3">
-              <h3 className="text-h2 font-semibold text-ink">Equipped Gear</h3>
-              <span className="text-sm text-ink-faint">
-                Average <span className="tabular font-medium text-ink">{data.audit.averageItemLevel}</span>
-                {data.audit.target ? (
-                  <>
-                    {' · +'}
-                    {data.audit.target.keyLevel} keys award{' '}
-                    <span className="tabular font-medium text-ink">{data.audit.target.vaultItemLevel}</span> in Vault
-                    {data.audit.target.cappedAt ? ` (max +${data.audit.target.cappedAt})` : ''}
-                  </>
-                ) : null}
-              </span>
-            </div>
+      <section>
+        {/*
+          The three numbers that used to be a run-on sentence ("Average 304 · +8 keys
+          award 315 in Vault … 10 slots below current key vault reward") are now a stat
+          strip. They are the same three numbers, but as figures they can be compared at
+          a glance — which is the entire question this section answers.
+        */}
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+          <h3 className="text-h2 font-semibold text-ink">Equipped Gear</h3>
 
+          <div className="flex flex-wrap items-center gap-2">
+            <GearStat value={data.audit.averageItemLevel} label="Average ilvl" />
+            {data.audit.target ? (
+              <GearStat
+                value={data.audit.target.vaultItemLevel}
+                label={`Vault at +${data.audit.target.keyLevel}`}
+                title={
+                  data.audit.target.cappedAt
+                    ? `Vault rewards cap at +${data.audit.target.cappedAt}`
+                    : undefined
+                }
+              />
+            ) : null}
             {data.audit.target && data.audit.belowVaultCount > 0 ? (
-              <span className="text-xs font-medium text-stale">
-                {data.audit.belowVaultCount} slot{data.audit.belowVaultCount > 1 ? 's' : ''} below current key vault reward
-              </span>
+              <GearStat
+                value={data.audit.belowVaultCount}
+                label={`Slot${data.audit.belowVaultCount > 1 ? 's' : ''} below vault`}
+                tone="var(--color-stale)"
+              />
             ) : null}
           </div>
-          <div className="h-px w-full bg-gradient-to-r from-accent/20 via-line/20 to-transparent" />
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-2 sm:grid-cols-2">
           {SLOT_ORDER.filter((slot) => items[slot]).map((slot) => {
             const item = items[slot];
             const slotAudit = data.audit.slots.find((s) => s.slot === slot);
             const qualityName = QUALITY_BY_INDEX[item.item_quality] ?? null;
+            const track = data.tracks?.[slot] ?? null;
+            const weak = slotAudit?.verdict === 'weak';
 
             return (
               <div
                 key={slot}
-                className="group flex items-center gap-3.5 rounded-xl border border-line bg-surface/80 p-2.5 transition-colors hover:border-line-strong hover:bg-raised"
-                style={
-                  slotAudit?.verdict === 'weak'
-                    ? { borderColor: 'color-mix(in srgb, var(--color-stale) 40%, transparent)' }
-                    : undefined
-                }
+                /*
+                  A weak slot is tinted rather than outlined. The amber border it used to
+                  get drew a hard box around the very rows the eye should be able to sweep
+                  past — and with the softer line tokens it had become the loudest edge on
+                  the page. Fill marks the row without fencing it off.
+                */
+                className={`group flex items-center gap-3 rounded-xl p-2.5 transition-colors ${
+                  weak ? 'bg-stale/8 hover:bg-stale/12' : 'bg-surface/70 hover:bg-raised'
+                }`}
               >
-                <WowIcon
-                  src={slugIconUrl(item.icon)}
-                  size={38}
-                  quality={qualityName}
-                  rounded="md"
-                />
+                <WowIcon src={slugIconUrl(item.icon)} size={40} quality={qualityName} rounded="md" />
+
                 <div className="min-w-0 flex-1">
-                  <span className="block text-[11px] font-medium tracking-wider text-ink-faint uppercase">
+                  <span className="block text-[10px] leading-none font-medium tracking-wider text-ink-faint uppercase">
                     {slot.replace(/(\d+)$/, ' $1')}
                   </span>
                   <a
                     href={wowheadItemUrl(item.item_id, item)}
                     target="_blank"
                     rel="noreferrer"
-                    className="block truncate text-item font-semibold text-ink group-hover:text-accent transition-colors"
+                    className="mt-1 block truncate text-item font-semibold text-ink transition-colors group-hover:text-accent"
                   >
                     {item.name}
                   </a>
                   {item.enchants_detail?.length ? (
                     <span
-                      className="block truncate text-xs text-fit-90"
+                      className="mt-0.5 block truncate text-xs text-fit-90"
                       title={item.enchants_detail.map((e) => e.name).join(', ')}
                     >
                       {item.enchants_detail
@@ -347,11 +354,8 @@ function Profile({
                     </span>
                   ) : null}
                 </div>
-                <SlotStanding
-                  audit={slotAudit}
-                  itemLevel={item.item_level}
-                  track={data.tracks?.[slot] ?? null}
-                />
+
+                <SlotStanding audit={slotAudit} itemLevel={item.item_level} track={track} />
               </div>
             );
           })}
@@ -435,6 +439,8 @@ function SlotStanding({
         : 'var(--color-ink-soft)';
 
   const maxed = track ? track.rank >= track.maxRank : false;
+  const remaining = track ? track.maxRank - track.rank : 0;
+  const trackTone = track ? trackColor(track.track) : 'var(--color-ink-faint)';
 
   return (
     <span className="flex shrink-0 flex-col items-end gap-1">
@@ -465,32 +471,60 @@ function SlotStanding({
       </span>
 
       {/*
-        The track badge sits under the item level because it explains it: 305 means
-        something different on a Hero item than on a Myth one. Track name and rank are
-        one badge rather than two, since "Hero" without "1/6" hides the useful half —
-        a Hero 1/6 has five upgrades left, a Hero 6/6 has none.
+        The track badge sits under the item level because it explains it: 308 means
+        something different on a Champion 6/6 than on a Hero 2/6. Track and rank are one
+        badge, since "Hero" without "2/6" hides the half that says what to do next.
+
+        The pills carry a 22% tint rather than a whisper of one. At 14% only the
+        brightest track read as a badge at all and the rest looked like loose text, so
+        the same component appeared to be two different designs down the column.
       */}
       {track ? (
         <span
-          className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] leading-none font-semibold tracking-wide"
+          className="flex items-center gap-1.5 rounded-md py-0.5 pr-1.5 pl-2 text-[10px] leading-none font-semibold tracking-wide"
           style={{
-            color: trackColor(track.track),
-            backgroundColor: `color-mix(in srgb, ${trackColor(track.track)} 14%, transparent)`,
+            color: trackTone,
+            backgroundColor: `color-mix(in srgb, ${trackTone} 22%, transparent)`,
           }}
           title={
             maxed
               ? `${formatTrack(track)} — fully upgraded`
-              : `${formatTrack(track)} — ${track.maxRank - track.rank} upgrade${
-                  track.maxRank - track.rank > 1 ? 's' : ''
-                } still available`
+              : `${formatTrack(track)} — ${remaining} upgrade${remaining > 1 ? 's' : ''} still available`
           }
         >
           {track.track}
-          <span className="tabular opacity-70">
+          {/* Dimmed rather than full-strength: the rank qualifies the track name, so it
+              should read as a suffix and not compete with it. */}
+          <span className="tabular opacity-75">
             {track.rank}/{track.maxRank}
           </span>
         </span>
       ) : null}
+    </span>
+  );
+}
+
+/** One figure in the Equipped Gear summary strip. */
+function GearStat({
+  value,
+  label,
+  tone,
+  title,
+}: {
+  value: number;
+  label: string;
+  tone?: string;
+  title?: string;
+}) {
+  return (
+    <span
+      className="flex items-baseline gap-1.5 rounded-lg bg-surface/70 px-2.5 py-1.5"
+      title={title}
+    >
+      <span className="tabular text-sm font-bold" style={{ color: tone ?? 'var(--color-ink)' }}>
+        {value}
+      </span>
+      <span className="text-[11px] text-ink-faint">{label}</span>
     </span>
   );
 }
