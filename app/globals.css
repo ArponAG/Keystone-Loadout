@@ -96,10 +96,13 @@
      mid-blue thinned to ~28% over the page turned grey-blue and muddy; a darker tone at
      full strength reads as a lifted surface instead of a stain.
 
-     Kept only a little above --color-raised. Selection here marks one card in a short
-     rail the reader is already looking at, so it needs to be findable, not announced —
-     and it has to sit under class-coloured names without competing with them. */
-  --color-selected: #1e2432;
+     Tuned twice. #2a3349 was too indigo and read as a block of colour under the
+     class-coloured names it sits beneath; #1e2432 fixed the hue but dropped the contrast
+     to 1.23 against the page, at which point selecting a card barely looked like it did
+     anything. This sits between them: clearly a state change, but a lifted slate rather
+     than a wash of blue. The fix for "too purple" was less saturation, not less
+     presence. */
+  --color-selected: #262d3b;
   --color-behind: #b4708c;
 
   /* --- status --- */
