@@ -6,11 +6,9 @@ import { FitScoreBadge } from '@/components/FitScoreBadge';
 import { WowIcon } from '@/components/WowIcon';
 import { Banner } from '@/components/ui';
 import { itemIconUrl, qualityColor, wowheadItemUrl } from '@/lib/domain/icons';
-import type { Recommendations } from '@/lib/domain/recommend';
+import { PER_SLOT_CHOICES, type CandidateItem, type Recommendations } from '@/lib/domain/recommend';
 import { SECONDARY_LABEL, type SecondaryKey } from '@/lib/domain/stats';
-import type { ResolvedBuild } from '@/lib/raiderio/recommend-for-character';
-
-const SECONDARIES: SecondaryKey[] = ['haste', 'crit', 'mastery', 'vers'];
+import type { LootSource, ResolvedBuild } from '@/lib/raiderio/recommend-for-character';
 
 /**
  * "What to get next", written for someone new to the game.
@@ -20,112 +18,44 @@ const SECONDARIES: SecondaryKey[] = ['haste', 'crit', 'mastery', 'vers'];
  * offered as a refinement further down, not as a prerequisite, because a new player
  * does not know their priority and should still get a useful answer.
  */
-function getSpecBadgeStyle(specName: string | null | undefined): string {
-  if (!specName) return 'border-accent/40 bg-accent-muted/20 text-accent';
-  const name = specName.toLowerCase();
-
-  if (name.includes('prot') || name.includes('guardian') || name.includes('blood') || name.includes('brewmaster') || name.includes('vengeance')) {
-    return 'border-sky-500/40 bg-sky-500/15 text-sky-300';
-  }
-  if (name.includes('holy') || name.includes('resto') || name.includes('mistweaver') || name.includes('preservation') || name.includes('discipline')) {
-    return 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300';
-  }
-  if (name.includes('fire') || name.includes('fury') || name.includes('havoc') || name.includes('arms') || name.includes('destruction')) {
-    return 'border-amber-500/40 bg-amber-500/15 text-amber-300';
-  }
-  if (name.includes('frost') || name.includes('arcane') || name.includes('balance') || name.includes('elemental') || name.includes('devastation')) {
-    return 'border-teal-500/40 bg-teal-500/15 text-teal-300';
-  }
-  if (name.includes('shadow') || name.includes('affliction') || name.includes('demonology') || name.includes('subtlety') || name.includes('unholy')) {
-    return 'border-purple-500/40 bg-purple-500/15 text-purple-300';
-  }
-  return 'border-accent/40 bg-accent-muted/20 text-accent';
-}
-
-function getArmorBadgeStyle(armorType: string | null | undefined): string {
-  switch (armorType?.toLowerCase()) {
-    case 'plate':
-      return 'border-slate-500/40 bg-slate-500/15 text-slate-300';
-    case 'mail':
-      return 'border-blue-500/40 bg-blue-500/15 text-blue-300';
-    case 'leather':
-      return 'border-amber-600/40 bg-amber-600/15 text-amber-300';
-    case 'cloth':
-      return 'border-violet-500/40 bg-violet-500/15 text-violet-300';
-    default:
-      return 'border-line-strong bg-inset/90 text-ink-soft';
-  }
-}
-
-function getPrimaryStatBadgeStyle(primary: string | null | undefined): string {
-  switch (primary?.toLowerCase()) {
-    case 'strength':
-      return 'border-rose-500/40 bg-rose-500/15 text-rose-300';
-    case 'agility':
-      return 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300';
-    case 'intellect':
-      return 'border-cyan-500/40 bg-cyan-500/15 text-cyan-300';
-    default:
-      return 'border-line-strong bg-inset/90 text-ink-soft';
-  }
-}
-
-const INSTANCE_COLOR_MAP: Record<string, string> = {
-  "kings' rest": 'border-amber-500/40 bg-amber-500/15 text-amber-300',
-  'temple of sethraliss': 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300',
-  'ruby life pools': 'border-rose-500/40 bg-rose-500/15 text-rose-300',
-  'voidscar arena': 'border-purple-500/40 bg-purple-500/15 text-purple-300',
-  'altar of fangs': 'border-cyan-500/40 bg-cyan-500/15 text-cyan-300',
-  'murder row': 'border-orange-500/40 bg-orange-500/15 text-orange-300',
-  'the blinding vale': 'border-indigo-500/40 bg-indigo-500/15 text-indigo-300',
-  'sporefall': 'border-lime-500/40 bg-lime-500/15 text-lime-300',
-  'the tidebound grotto': 'border-sky-500/40 bg-sky-500/15 text-sky-300',
-  'the venomous abyss': 'border-fuchsia-500/40 bg-fuchsia-500/15 text-fuchsia-300',
-  'den of nalorakk': 'border-amber-600/40 bg-amber-600/15 text-amber-300',
-};
-
-const INSTANCE_PALETTES = [
-  'border-amber-500/40 bg-amber-500/15 text-amber-300',
-  'border-emerald-500/40 bg-emerald-500/15 text-emerald-300',
-  'border-cyan-500/40 bg-cyan-500/15 text-cyan-300',
-  'border-rose-500/40 bg-rose-500/15 text-rose-300',
-  'border-purple-500/40 bg-purple-500/15 text-purple-300',
-  'border-indigo-500/40 bg-indigo-500/15 text-indigo-300',
-  'border-teal-500/40 bg-teal-500/15 text-teal-300',
-  'border-orange-500/40 bg-orange-500/15 text-orange-300',
-  'border-fuchsia-500/40 bg-fuchsia-500/15 text-fuchsia-300',
-  'border-sky-500/40 bg-sky-500/15 text-sky-300',
-];
-
-function getInstanceBadgeStyle(name: string): string {
-  const clean = name.toLowerCase().trim();
-  if (INSTANCE_COLOR_MAP[clean]) return INSTANCE_COLOR_MAP[clean];
-
-  let hash = 0;
-  for (let i = 0; i < clean.length; i++) {
-    hash = (hash << 5) - hash + clean.charCodeAt(i);
-    hash |= 0;
-  }
-  return INSTANCE_PALETTES[Math.abs(hash) % INSTANCE_PALETTES.length];
-}
-
 export function NextUpgrades({
   recommendations,
   build,
   order,
   onReorder,
+  perSlot,
+  onPerSlot,
+  source,
+  onSource,
+  busy,
 }: {
   recommendations: Recommendations;
   build: ResolvedBuild;
   order: SecondaryKey[];
   onReorder: (next: SecondaryKey[]) => void;
+  perSlot: number;
+  onPerSlot: (n: number) => void;
+  source: LootSource;
+  onSource: (v: LootSource) => void;
+  busy: boolean;
 }) {
   const [showAll, setShowAll] = useState(false);
 
+  const controls = (
+    <Controls
+      perSlot={perSlot}
+      onPerSlot={onPerSlot}
+      source={source}
+      onSource={onSource}
+      busy={busy}
+    />
+  );
+
   if (recommendations.bySlot.length === 0) {
     return (
-      <section className="space-y-3">
-        <h3 className="text-h2 font-semibold text-ink border-b border-line pb-2.5">What to Get Next</h3>
+      <section>
+        <Header build={build} />
+        {controls}
         <Banner variant="info">
           Every slot is already at or above what your current key level rewards. To upgrade
           further you need to push higher keys, or look to raid.
@@ -134,163 +64,306 @@ export function NextUpgrades({
     );
   }
 
-  const slots = showAll ? recommendations.bySlot : recommendations.bySlot.slice(0, 5);
+  const slots = showAll ? recommendations.bySlot : recommendations.bySlot.slice(0, 4);
+  const hidden = recommendations.bySlot.length - slots.length;
 
   return (
-    <section className="space-y-4 rounded-2xl border border-line/50 bg-raised/20 p-4 sm:p-5">
-      <div>
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pb-2.5">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <h3 className="text-h2 font-semibold text-ink">What to Get Next</h3>
-            <div className="flex flex-wrap items-center gap-1.5">
-              {build.specName ? (
-                <span className={`rounded-md border px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider ${getSpecBadgeStyle(build.specName)}`}>
-                  {build.specName}
-                </span>
-              ) : null}
-              {build.armorType ? (
-                <span className={`rounded-md border px-2.5 py-0.5 text-xs font-semibold capitalize tracking-wide ${getArmorBadgeStyle(build.armorType)}`}>
-                  {build.armorType}
-                </span>
-              ) : null}
-              {build.primary ? (
-                <span className={`rounded-md border px-2.5 py-0.5 text-xs font-semibold capitalize tracking-wide ${getPrimaryStatBadgeStyle(build.primary)}`}>
-                  {build.primary}
-                </span>
-              ) : null}
-            </div>
-          </div>
-          <span className="text-xs text-ink-faint">
-            Ranked by highest item level gain
-          </span>
-        </div>
-        <div className="h-px w-full bg-gradient-to-r from-accent/20 via-line/20 to-transparent" />
-      </div>
+    <section>
+      <Header build={build} />
+      {controls}
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      {/*
+        "Which dungeon should I run tonight?" was already being computed and then thrown
+        away — byDungeon has been in the payload all along with nothing rendering it.
+        It is the question a new player actually has, and it cannot be answered from the
+        per-slot list without cross-referencing eleven dungeon names by hand.
+      */}
+      <BestRuns recommendations={recommendations} />
+
+      <div className="grid gap-3 lg:grid-cols-2">
         {slots.map((rec) => (
-          <div key={rec.slot} className="flex flex-col justify-between overflow-hidden rounded-xl border border-line bg-surface/80 shadow-xs">
-            <div>
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-raised/40 px-4 py-2.5">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-h3 font-semibold text-ink">{rec.label}</span>
-                  <span className="text-xs font-mono text-ink-faint">
-                    <span className="tabular">{rec.currentItemLevel}</span> →{' '}
-                    <span className="tabular font-medium text-ink">{rec.targetItemLevel}</span>
-                  </span>
-                </div>
-
-                <span
-                  className="tabular rounded-md px-2 py-0.5 text-xs font-bold"
-                  style={{
-                    color: 'var(--color-ok)',
-                    backgroundColor: 'color-mix(in srgb, var(--color-ok) 15%, transparent)',
-                  }}
-                >
-                  +{rec.gain} ilvl
+          <article key={rec.slot} className="overflow-hidden rounded-xl bg-surface/70">
+            <div className="flex flex-wrap items-center justify-between gap-2 bg-raised/50 px-3.5 py-2.5">
+              <div className="flex items-baseline gap-2.5">
+                <h4 className="text-h3 font-semibold text-ink">{rec.label}</h4>
+                <span className="tabular text-xs text-ink-faint">
+                  {rec.currentItemLevel} <span className="text-ink-faint/60">→</span>{' '}
+                  <span className="font-medium text-ink">{rec.targetItemLevel}</span>
                 </span>
               </div>
 
-              <ul className="divide-y divide-line/60">
-                {rec.candidates.map((c) => (
-                  <li
-                    key={c.id}
-                    className="flex items-center gap-3.5 px-4 py-3 transition-colors hover:bg-raised"
-                  >
-                    <WowIcon
-                      src={itemIconUrl(c.iconFileId)}
-                      size={40}
-                      quality={c.quality}
-                      rounded="md"
-                    />
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <a
-                        href={wowheadItemUrl(c.id)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="block truncate text-item font-semibold hover:underline transition-colors"
-                        style={{ color: qualityColor(c.quality) }}
-                      >
-                        {c.name}
-                      </a>
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
-                          c.instanceType === 'raid'
-                            ? 'border-rose-500/40 bg-rose-500/15 text-rose-300'
-                            : 'border-accent/40 bg-accent-muted/20 text-accent'
-                        }`}>
-                          {c.instanceType === 'raid' ? 'Raid' : 'Dungeon'}
-                        </span>
-                        <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${getInstanceBadgeStyle(c.instanceName)}`}>
-                          {c.instanceName}
-                        </span>
-                        {c.encounterName ? (
-                          <span className="truncate text-xs text-ink-faint">
-                            {c.encounterName}
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-                    <div className="shrink-0 pl-1">
-                      <FitScoreBadge score={c.score} />
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              <span
+                className="tabular rounded-md px-2 py-0.5 text-xs font-bold"
+                style={{
+                  color: 'var(--color-ok)',
+                  backgroundColor: 'color-mix(in srgb, var(--color-ok) 15%, transparent)',
+                }}
+                title={`This slot is ${rec.gain} item levels below your vault reward`}
+              >
+                +{rec.gain} ilvl
+              </span>
             </div>
-          </div>
+
+            <ul>
+              {rec.candidates.map((c) => (
+                <Candidate key={c.id} item={c} />
+              ))}
+            </ul>
+
+          </article>
         ))}
       </div>
 
-      {recommendations.bySlot.length > 5 ? (
+      {hidden > 0 || showAll ? (
         <button
           type="button"
           onClick={() => setShowAll((v) => !v)}
-          className="rounded-lg border border-line-strong bg-raised px-3.5 py-1.5 text-xs font-medium text-ink-soft transition-colors hover:border-accent hover:text-accent"
+          className="mt-3 rounded-lg bg-raised px-3.5 py-2 text-xs font-medium text-ink-soft transition-colors hover:text-accent"
         >
-          {showAll ? 'Show fewer slots' : `Show all ${recommendations.bySlot.length} slots`}
+          {showAll ? 'Show fewer slots' : `Show ${hidden} more slot${hidden > 1 ? 's' : ''}`}
         </button>
       ) : null}
 
-      <details className="group rounded-xl border border-line bg-surface/60 transition-colors hover:border-line-strong">
-        <summary className="cursor-pointer px-4 py-2.5 text-sm font-medium text-ink-soft transition-colors hover:text-ink">
-          Know your stat priority? Tune the percentages
-        </summary>
-        <div className="border-t border-line p-4 space-y-3">
-          <p className="text-xs text-ink-faint leading-relaxed">
-            The percentage reflects how much of an item’s secondary stats match your priority.
-            It does not change which slot is furthest behind (that is based on item level).
-            For precise simulations, use{' '}
-            <a
-              href="https://www.raidbots.com/simbot/droptimizer"
-              target="_blank"
-              rel="noreferrer"
-              className="text-accent hover:underline"
-            >
-              Raidbots Droptimizer
-            </a>.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {order.map((key, index) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => {
-                  const next = [...order];
-                  next.splice(index, 1);
-                  next.unshift(key);
-                  onReorder(next);
-                }}
-                className="rounded-lg border border-line-strong bg-raised px-3 py-1 text-xs font-medium text-ink-soft transition-colors hover:border-accent hover:text-accent"
-                title={`Move ${SECONDARY_LABEL[key]} to priority 1`}
-              >
-                <span className="tabular mr-1.5 font-bold text-accent">{index + 1}</span>
-                {SECONDARY_LABEL[key]}
-              </button>
-            ))}
-          </div>
-        </div>
-      </details>
+      <StatPriority order={order} onReorder={onReorder} />
     </section>
+  );
+}
+
+function Header({ build }: { build: ResolvedBuild }) {
+  return (
+    <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="text-h2 font-semibold text-ink">What to Get Next</h3>
+        {/*
+          These three describe the filter that produced the list, so they read as one
+          line of prose rather than three loud chips. Before, each had its own hand-picked
+          colour scheme — the spec badge alone matched on substrings like "prot" and
+          "fire" across five palettes — which made the filter louder than the results.
+        */}
+        {build.specName || build.armorType || build.primary ? (
+          <span className="flex items-center gap-1.5 text-xs text-ink-faint">
+            {[build.specName, build.armorType, build.primary]
+              .filter(Boolean)
+              .map((part, i) => (
+                <span key={i} className="rounded-md bg-raised px-2 py-0.5 capitalize">
+                  {part}
+                </span>
+              ))}
+          </span>
+        ) : null}
+      </div>
+      <span className="text-xs text-ink-faint">Ranked by item level gap, then stat fit</span>
+    </div>
+  );
+}
+
+function Controls({
+  perSlot,
+  onPerSlot,
+  source,
+  onSource,
+  busy,
+}: {
+  perSlot: number;
+  onPerSlot: (n: number) => void;
+  source: LootSource;
+  onSource: (v: LootSource) => void;
+  busy: boolean;
+}) {
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl bg-surface/50 px-3.5 py-2.5">
+      <span className="flex items-center gap-2">
+        <span className="text-[11px] tracking-wide text-ink-faint uppercase">Per slot</span>
+        <span className="flex gap-1">
+          {PER_SLOT_CHOICES.map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => onPerSlot(n)}
+              aria-pressed={perSlot === n}
+              className={`tabular rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+                perSlot === n
+                  ? 'bg-accent-muted/45 text-accent'
+                  : 'bg-raised text-ink-soft hover:text-ink'
+              }`}
+            >
+              {n}
+            </button>
+          ))}
+        </span>
+      </span>
+
+      <span className="flex items-center gap-2">
+        <span className="text-[11px] tracking-wide text-ink-faint uppercase">Source</span>
+        <span className="flex gap-1">
+          {SOURCE_TABS.map(({ value, label, hint }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => onSource(value)}
+              aria-pressed={source === value}
+              title={hint}
+              className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+                source === value
+                  ? 'bg-accent-muted/45 text-accent'
+                  : 'bg-raised text-ink-soft hover:text-ink'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </span>
+      </span>
+
+      {busy ? <span className="text-xs text-ink-faint">Updating…</span> : null}
+
+      {/*
+        Stated once here rather than on every raid row. The +N on each slot header is the
+        gap to the Mythic+ vault reward, which is exact for a key drop but only
+        indicative for a raid one — raid item level depends on the difficulty, which our
+        data does not carry. Saying it per row would be noise; not saying it would let
+        the header's number appear to describe rows it does not.
+      */}
+      {source !== 'mplus' ? (
+        <span className="w-full text-xs text-ink-faint">
+          Raid item levels depend on difficulty — the{' '}
+          <span className="font-medium text-ink-soft">+N</span> figures compare Mythic+
+          vault rewards.
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+const SOURCE_TABS: { value: LootSource; label: string; hint: string }[] = [
+  { value: 'all', label: 'All', hint: 'Mythic+ and raid ranked together' },
+  { value: 'mplus', label: 'Mythic+', hint: 'This season’s dungeon rotation only' },
+  { value: 'raid', label: 'Raid', hint: 'Current-tier raid drops only' },
+];
+
+/** "What should I run tonight" — the dungeon covering the most weak slots. */
+function BestRuns({ recommendations }: { recommendations: Recommendations }) {
+  const top = recommendations.byDungeon.filter((d) => d.slots.length > 1).slice(0, 3);
+  if (top.length === 0) return null;
+
+  return (
+    <div className="mb-3 rounded-xl bg-surface/50 p-3.5">
+      <p className="mb-2 text-[11px] tracking-wide text-ink-faint uppercase">
+        Best value runs — one dungeon, several slots
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {top.map((d) => (
+          <span
+            key={d.instanceId}
+            className="flex items-center gap-2 rounded-lg bg-raised px-3 py-1.5"
+            title={`Upgrades: ${d.slots.join(', ')}`}
+          >
+            <span className="text-item font-semibold text-ink">{d.instanceName}</span>
+            <span className="tabular text-xs text-ink-faint">
+              {d.slots.length} slots
+            </span>
+            <span
+              className="tabular rounded-md px-1.5 py-0.5 text-[10px] font-bold"
+              style={{
+                color: 'var(--color-ok)',
+                backgroundColor: 'color-mix(in srgb, var(--color-ok) 15%, transparent)',
+              }}
+            >
+              +{d.totalGain}
+            </span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Candidate({ item }: { item: CandidateItem }) {
+  const isRaid = item.instanceType === 'raid';
+
+  return (
+    <li className="flex items-center gap-3 px-3.5 py-2.5 transition-colors hover:bg-raised">
+      <WowIcon src={itemIconUrl(item.iconFileId)} size={36} quality={item.quality} rounded="md" />
+
+      <div className="min-w-0 flex-1">
+        <a
+          href={wowheadItemUrl(item.id)}
+          target="_blank"
+          rel="noreferrer"
+          className="block truncate text-item font-semibold transition-opacity hover:opacity-80"
+          style={{ color: qualityColor(item.quality) }}
+        >
+          {item.name}
+        </a>
+        {/*
+          Source as plain text, not a coloured chip. Eleven dungeons previously got
+          eleven hand-assigned palettes with a string hash as fallback, which gave every
+          row a second bright colour competing with the item's own quality colour.
+        */}
+        <span className="block truncate text-xs text-ink-faint">
+          {isRaid ? (
+            <span className="font-medium" style={{ color: 'var(--color-track-myth)' }}>
+              Raid
+            </span>
+          ) : null}
+          {isRaid ? ' · ' : ''}
+          {item.instanceName}
+          {item.encounterName ? ` · ${item.encounterName}` : ''}
+        </span>
+      </div>
+
+      <FitScoreBadge score={item.score} />
+    </li>
+  );
+}
+
+function StatPriority({
+  order,
+  onReorder,
+}: {
+  order: SecondaryKey[];
+  onReorder: (next: SecondaryKey[]) => void;
+}) {
+  return (
+    <details className="group mt-3 rounded-xl bg-surface/50">
+      <summary className="cursor-pointer px-3.5 py-2.5 text-sm font-medium text-ink-soft transition-colors hover:text-ink">
+        Know your stat priority? Tune the percentages
+      </summary>
+      <div className="space-y-3 px-3.5 pb-3.5">
+        <p className="text-xs leading-relaxed text-ink-faint">
+          The percentage reflects how much of an item’s secondary stats match your priority.
+          It does not change which slot is furthest behind — that is item level. For a real
+          answer, sim it on{' '}
+          <a
+            href="https://www.raidbots.com/simbot/droptimizer"
+            target="_blank"
+            rel="noreferrer"
+            className="text-accent hover:underline"
+          >
+            Raidbots
+          </a>
+          .
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {order.map((key, index) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => {
+                const next = [...order];
+                next.splice(index, 1);
+                next.unshift(key);
+                onReorder(next);
+              }}
+              className="rounded-lg bg-raised px-3 py-1.5 text-xs font-medium text-ink-soft transition-colors hover:text-accent"
+              title={`Move ${SECONDARY_LABEL[key]} to priority 1`}
+            >
+              <span className="tabular mr-1.5 font-bold text-accent">{index + 1}</span>
+              {SECONDARY_LABEL[key]}
+            </button>
+          ))}
+        </div>
+      </div>
+    </details>
   );
 }

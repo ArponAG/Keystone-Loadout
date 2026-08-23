@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, or } from 'drizzle-orm';
 
 import { db, schema } from '@/lib/db';
 import { checkEligibility, type Build } from '@/lib/domain/filters';
@@ -98,19 +98,49 @@ export async function resolveBuild(
   };
 }
 
+/** Where candidates may come from. 'all' is the default and ranks both together. */
+export type LootSource = 'all' | 'mplus' | 'raid';
+
+export const LOOT_SOURCES: LootSource[] = ['all', 'mplus', 'raid'];
+
+export type RecommendOptions = {
+  /** Candidates listed per slot. */
+  perSlot?: number;
+  source?: LootSource;
+};
+
 /**
- * Candidate upgrades from the current Mythic+ rotation.
+ * Candidate upgrades for a character.
  *
- * Only the rotation, deliberately: those items all arrive at the same item level for a
- * given key level, so they are directly comparable. Mixing in raid loot would compare
- * across tiers, which is the thing this app refuses to do elsewhere.
+ * The Mythic+ rotation is the quantified half: every rotation item arrives at the same
+ * item level for a given key level, so "+13 item levels" is a real statement and the
+ * items are directly comparable to one another.
+ *
+ * Raid loot joins the same ranking under 'all'. The slot's `gain` figure is exact for a
+ * Mythic+ drop and indicative for a raid one — a raid item's level depends on the
+ * difficulty it drops at, which our data does not carry — so the UI labels raid rows and
+ * states the caveat once rather than pretending the two are interchangeable.
+ *
+ * Non-rotation dungeons are excluded from every mode: not farmable on a key this
+ * season, and not part of the raid answer either.
  */
 export async function recommendForCharacter(
   audit: GearAudit,
   build: { armorType: ArmorType | null; primary: Build['primary'] | null },
   secondaryOrder: readonly [SecondaryKey, SecondaryKey, SecondaryKey, SecondaryKey],
+  options: RecommendOptions = {},
 ): Promise<Recommendations | null> {
   if (!audit.target) return null;
+
+  const { perSlot, source = 'all' } = options;
+
+  const inMplus = eq(schema.instances.inCurrentRotation, 1);
+  const inRaid = eq(schema.instances.type, 'raid');
+
+  // Non-rotation dungeons are excluded from every mode: they are not farmable on a key
+  // this season and are not part of the raid answer either.
+  const sourceFilter =
+    source === 'mplus' ? inMplus : source === 'raid' ? inRaid : or(inMplus, inRaid);
 
   const rows = await db
     .select({
@@ -131,7 +161,7 @@ export async function recommendForCharacter(
     .innerJoin(schema.items, eq(schema.items.id, schema.itemSources.itemId))
     .innerJoin(schema.instances, eq(schema.instances.id, schema.itemSources.instanceId))
     .leftJoin(schema.encounters, eq(schema.encounters.id, schema.itemSources.encounterId))
-    .where(and(eq(schema.items.isEquippable, 1), eq(schema.instances.inCurrentRotation, 1)));
+    .where(and(eq(schema.items.isEquippable, 1), sourceFilter));
 
   if (rows.length === 0) return null;
 
@@ -194,5 +224,6 @@ export async function recommendForCharacter(
     audit.target.vaultItemLevel,
     (slot) => bySlot.get(slot) ?? [],
     judged.filter((s) => s.belowVault === null).map((s) => s.slot),
+    perSlot,
   );
 }

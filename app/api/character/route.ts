@@ -5,9 +5,12 @@ import { db, dbReady, schema } from '@/lib/db';
 import { auditGear, typicalKeyLevel } from '@/lib/domain/gear-audit';
 import { vaultRewardFor } from '@/lib/domain/rewards';
 import { resolveUpgradeTrack, type UpgradeTrack } from '@/lib/domain/upgrade-track';
+import { DEFAULT_PER_SLOT, PER_SLOT_CHOICES } from '@/lib/domain/recommend';
 import {
+  LOOT_SOURCES,
   recommendForCharacter,
   resolveBuild,
+  type LootSource,
 } from '@/lib/raiderio/recommend-for-character';
 
 import {
@@ -122,7 +125,21 @@ export async function GET(request: Request) {
     order.length === 4 ? order : ['haste', 'crit', 'mastery', 'vers']
   ) as unknown as Parameters<typeof recommendForCharacter>[2];
 
-  const recommendations = await recommendForCharacter(audit, resolved, secondaryOrder);
+  // Clamped rather than trusted: this reaches a LIMIT-shaped slice, and a hand-edited
+  // "perSlot=500" should degrade to the largest sane list, not render one.
+  const requestedPerSlot = Number(params.get('perSlot'));
+  const perSlot = PER_SLOT_CHOICES.includes(requestedPerSlot as (typeof PER_SLOT_CHOICES)[number])
+    ? requestedPerSlot
+    : DEFAULT_PER_SLOT;
+
+  const requestedSource = params.get('source') as LootSource | null;
+  const source: LootSource =
+    requestedSource && LOOT_SOURCES.includes(requestedSource) ? requestedSource : 'all';
+
+  const recommendations = await recommendForCharacter(audit, resolved, secondaryOrder, {
+    perSlot,
+    source,
+  });
 
   return NextResponse.json(
     {

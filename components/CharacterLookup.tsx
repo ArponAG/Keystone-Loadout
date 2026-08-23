@@ -20,9 +20,12 @@ import {
   type SavedCharacter,
 } from '@/lib/saved-characters';
 import type { GearAudit, SlotAudit } from '@/lib/domain/gear-audit';
-import type { Recommendations } from '@/lib/domain/recommend';
+// One statement, not a value import plus a separate `import type` from the same module:
+// the bundler collapses the pair, keeps the type-only marker, and elides the value —
+// which typechecks cleanly and then throws ReferenceError in the browser.
+import { DEFAULT_PER_SLOT, type Recommendations } from '@/lib/domain/recommend';
 import type { SecondaryKey } from '@/lib/domain/stats';
-import type { ResolvedBuild } from '@/lib/raiderio/recommend-for-character';
+import type { LootSource, ResolvedBuild } from '@/lib/raiderio/recommend-for-character';
 import type { CharacterProfile, MythicPlus, TalentBuild } from '@/lib/raiderio/character';
 
 /** Raider.IO returns gear keyed by slot name, in no particular order. */
@@ -60,6 +63,10 @@ export function CharacterLookup() {
   const [data, setData] = useState<Response | null>(null);
   const [saved, setSaved] = useState<SavedCharacter[]>([]);
   const [order, setOrder] = useState<SecondaryKey[]>(['haste', 'crit', 'mastery', 'vers']);
+  // Recommendation shape lives here rather than in NextUpgrades: changing either one
+  // re-queries the server, so they belong with the other lookup parameters.
+  const [perSlot, setPerSlot] = useState<number>(DEFAULT_PER_SLOT);
+  const [source, setSource] = useState<LootSource>('all');
   const [lastQuery, setLastQuery] = useState<{ region: string; realm: string; name: string } | null>(null);
 
   // Pinned characters live in localStorage, not the database — see lib/saved-characters.ts.
@@ -82,14 +89,19 @@ export function CharacterLookup() {
 
   async function lookup(
     q: { region: string; realm: string; name: string },
-    nextOrder?: SecondaryKey[],
+    overrides?: { order?: SecondaryKey[]; perSlot?: number; source?: LootSource },
   ) {
     setLoading(true);
     setError(null);
     setLastQuery(q);
 
     try {
-      const query = new URLSearchParams({ ...q, order: (nextOrder ?? order).join(',') });
+      const query = new URLSearchParams({
+        ...q,
+        order: (overrides?.order ?? order).join(','),
+        perSlot: String(overrides?.perSlot ?? perSlot),
+        source: overrides?.source ?? source,
+      });
       const res = await fetch(`/api/character?${query}`);
       const body = await res.json();
 
@@ -151,8 +163,19 @@ export function CharacterLookup() {
           order={order}
           onReorder={(next) => {
             setOrder(next);
-            if (lastQuery) void lookup(lastQuery, next);
+            if (lastQuery) void lookup(lastQuery, { order: next });
           }}
+          perSlot={perSlot}
+          onPerSlot={(n) => {
+            setPerSlot(n);
+            if (lastQuery) void lookup(lastQuery, { perSlot: n });
+          }}
+          source={source}
+          onSource={(v) => {
+            setSource(v);
+            if (lastQuery) void lookup(lastQuery, { source: v });
+          }}
+          busy={loading}
         />
       ) : null}
     </>
@@ -165,12 +188,22 @@ function Profile({
   onToggleSave,
   order,
   onReorder,
+  perSlot,
+  onPerSlot,
+  source,
+  onSource,
+  busy,
 }: {
   data: Response;
   isSaved: boolean;
   onToggleSave: () => void;
   order: SecondaryKey[];
   onReorder: (next: SecondaryKey[]) => void;
+  perSlot: number;
+  onPerSlot: (n: number) => void;
+  source: LootSource;
+  onSource: (v: LootSource) => void;
+  busy: boolean;
 }) {
   const { profile } = data;
   const scores = profile.mythic_plus_scores_by_season?.[0]?.scores;
@@ -369,6 +402,11 @@ function Profile({
           build={data.build}
           order={order}
           onReorder={onReorder}
+          perSlot={perSlot}
+          onPerSlot={onPerSlot}
+          source={source}
+          onSource={onSource}
+          busy={busy}
         />
       ) : null}
 

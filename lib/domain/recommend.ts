@@ -37,8 +37,18 @@ export type SlotRecommendation = {
   label: string;
   currentItemLevel: number;
   targetItemLevel: number;
-  /** How many item levels the vault target is above what they wear now. */
+  /**
+   * How many item levels the vault target is above what they wear now.
+   *
+   * This describes the SLOT, not any individual candidate: it is the gap between what
+   * is worn and the Mythic+ vault reward for this character's key level. It is exact
+   * for a Mythic+ drop and indicative only for a raid one, whose level depends on the
+   * difficulty it drops at — something our data does not carry (`base_item_level` reads
+   * 197/219 for raid and 59/108/219/250 for dungeons, none of which resemble what
+   * players actually receive). The UI labels raid rows and says so once.
+   */
   gain: number;
+  /** Best candidates for this slot, ranked by stat fit across whichever sources were queried. */
   candidates: CandidateItem[];
 };
 
@@ -58,8 +68,11 @@ export type Recommendations = {
   slotsAtCeiling: string[];
 };
 
-/** Candidates shown per slot. Enough to choose from, not a wall of text. */
-const PER_SLOT = 3;
+/** Candidates shown per slot when the caller expresses no preference. */
+export const DEFAULT_PER_SLOT = 3;
+
+/** What the user may choose from. More than eight is a loot table, not advice. */
+export const PER_SLOT_CHOICES = [3, 5, 8] as const;
 
 /** Raider.IO slots are finger1/finger2/trinket1; our loot table stores finger/trinket. */
 export function toLootSlot(characterSlot: string): string {
@@ -71,16 +84,20 @@ export function buildRecommendations(
   targetItemLevel: number,
   candidatesForSlot: (lootSlot: string) => CandidateItem[],
   atCeiling: string[],
+  perSlot: number = DEFAULT_PER_SLOT,
 ): Recommendations {
   const bySlot: SlotRecommendation[] = [];
 
   for (const weak of weakSlots) {
     if (weak.belowVault === null) continue;
 
+    // One ranked list across whatever the caller queried. Which sources are in play is
+    // decided by the SQL filter, not here, so "All" genuinely compares a raid drop and
+    // a dungeon drop on the same footing rather than stapling two lists together.
     const candidates = candidatesForSlot(toLootSlot(weak.slot))
       .slice()
       .sort((a, b) => compareScores(a.score, b.score))
-      .slice(0, PER_SLOT);
+      .slice(0, perSlot);
 
     // A slot with no obtainable item is not a recommendation, it is noise.
     if (candidates.length === 0) continue;
@@ -105,6 +122,9 @@ export function buildRecommendations(
   for (const rec of bySlot) {
     const seenHere = new Set<number>();
     for (const candidate of rec.candidates) {
+      // Raids are excluded: this answers "which key should I run tonight", and a raid
+      // boss is not a key. A raid is also not a thing you can repeat on demand.
+      if (candidate.instanceType === 'raid') continue;
       if (seenHere.has(candidate.instanceId)) continue;
       seenHere.add(candidate.instanceId);
 

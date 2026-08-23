@@ -147,3 +147,85 @@ test('unscoreable candidates still appear, sorted last', () => {
     ['Scored', 'No Secondaries'],
   );
 });
+
+// --- source mixing ------------------------------------------------------------
+
+const raidItem = (
+  id: number,
+  name: string,
+  slot: string,
+  percent: number | null,
+): CandidateItem => ({
+  id,
+  name,
+  quality: 'EPIC',
+  iconFileId: null,
+  slot,
+  instanceId: 900,
+  instanceName: 'The Voidspire',
+  instanceType: 'raid',
+  encounterName: 'Imperator Averzian',
+  score: score(percent),
+});
+
+test('raid and dungeon drops rank together in one list', () => {
+  // "All" has to mean genuinely combined, not two lists stapled together: a raid item
+  // that fits better than every dungeon item must be able to come first.
+  const mixed = [
+    item(1, 'Great Ring', 'finger', 100, 'Altar of Fangs', 90),
+    raidItem(90, 'Voidspire Band', 'finger', 99),
+    item(2, 'Good Ring', 'finger', 200, 'Murder Row', 70),
+  ];
+
+  const recs = buildRecommendations(
+    [{ slot: 'finger1', itemLevel: 259, belowVault: 46 }],
+    305,
+    () => mixed,
+    [],
+  );
+
+  assert.deepEqual(
+    recs.bySlot[0].candidates.map((c) => c.name),
+    ['Voidspire Band', 'Great Ring', 'Good Ring'],
+  );
+});
+
+test('perSlot caps the combined list', () => {
+  const mixed = [
+    ...[1, 2, 3, 4].map((n) => item(n, `M+ ${n}`, 'finger', 100, 'Altar of Fangs', 90 - n)),
+    ...[91, 92].map((n) => raidItem(n, `Raid ${n}`, 'finger', 95)),
+  ];
+
+  const recs = buildRecommendations(
+    [{ slot: 'finger1', itemLevel: 259, belowVault: 46 }],
+    305,
+    () => mixed,
+    [],
+    2,
+  );
+
+  assert.equal(recs.bySlot[0].candidates.length, 2);
+});
+
+test('byDungeon ignores raids — a raid boss is not a key you can run', () => {
+  const recs = buildRecommendations(
+    [{ slot: 'finger1', itemLevel: 259, belowVault: 46 }],
+    305,
+    () => [raidItem(90, 'Voidspire Band', 'finger', 99), item(1, 'Great Ring', 'finger', 100, 'Altar of Fangs', 90)],
+    [],
+  );
+
+  assert.deepEqual(recs.byDungeon.map((d) => d.instanceName), ['Altar of Fangs']);
+});
+
+test('a raid-only slot is still a recommendation', () => {
+  const recs = buildRecommendations(
+    [{ slot: 'finger1', itemLevel: 259, belowVault: 46 }],
+    305,
+    () => [raidItem(90, 'Voidspire Band', 'finger', 88)],
+    [],
+  );
+
+  assert.equal(recs.bySlot.length, 1);
+  assert.equal(recs.byDungeon.length, 0, 'and contributes no dungeon to run');
+});
