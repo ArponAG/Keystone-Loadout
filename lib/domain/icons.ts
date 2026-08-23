@@ -69,9 +69,38 @@ export function qualityColor(quality: string | null | undefined): string {
   return QUALITY_COLOR_VAR[quality ?? ''] ?? 'var(--color-ink)';
 }
 
-/** Wowhead item page — every item in the UI links out to the real answer. */
-export function wowheadItemUrl(itemId: number): string {
-  return `https://www.wowhead.com/item=${itemId}`;
+/**
+ * The specific copy of an item somebody is wearing, as opposed to the generic item.
+ * Every field is optional so callers holding only an id (the gear finder, which lists
+ * items nobody owns yet) can keep passing nothing.
+ */
+export type ItemInstance = {
+  bonuses?: number[] | null;
+  enchants?: number[] | null;
+  gems?: number[] | null;
+};
+
+/**
+ * Wowhead item page — every item in the UI links out to the real answer, and the
+ * tooltip embed reads these same parameters.
+ *
+ * Passing `bonus` is not optional polish: Wowhead defaults an item to its maximum
+ * upgrade track, so a bare `item=` link showed a Hero 1/6 weapon as Myth 6/6 — about
+ * 30 item levels too generous. Verified against nether.wowhead.com/tooltip: bare
+ * renders 334 "Myth 6/6", with bonuses it renders the true 305 "Hero 1/6". An `ilvl`
+ * parameter does NOT fix it — the track comes from the bonus ids — so it is not sent.
+ */
+export function wowheadItemUrl(itemId: number, instance?: ItemInstance): string {
+  const url = `https://www.wowhead.com/item=${itemId}`;
+  if (!instance) return url;
+
+  const params: string[] = [];
+  if (instance.bonuses?.length) params.push(`bonus=${instance.bonuses.join(':')}`);
+  // Wowhead takes a single enchant; an item only ever carries one.
+  if (instance.enchants?.length) params.push(`ench=${instance.enchants[0]}`);
+  if (instance.gems?.length) params.push(`gems=${instance.gems.join(':')}`);
+
+  return params.length ? `${url}?${params.join('&')}` : url;
 }
 
 /** Raidbots droptimizer — "sim this properly", since our score is only a heuristic. */

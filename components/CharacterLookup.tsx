@@ -9,7 +9,7 @@ import { MythicPlusProgression, TalentBuildSection } from '@/components/Characte
 import { NextUpgrades } from '@/components/NextUpgrades';
 import { WowIcon } from '@/components/WowIcon';
 import { Banner } from '@/components/ui';
-import { slugIconUrl } from '@/lib/domain/icons';
+import { slugIconUrl, wowheadItemUrl } from '@/lib/domain/icons';
 import {
   characterKey,
   readSaved,
@@ -390,13 +390,25 @@ function Profile({
                     {slot.replace(/(\d+)$/, ' $1')}
                   </span>
                   <a
-                    href={`https://www.wowhead.com/item=${item.item_id}`}
+                    href={wowheadItemUrl(item.item_id, item)}
                     target="_blank"
                     rel="noreferrer"
                     className="block truncate text-item font-semibold text-ink group-hover:text-accent transition-colors"
                   >
                     {item.name}
                   </a>
+                  {item.enchants_detail?.length ? (
+                    <span
+                      className="block truncate text-xs text-fit-90"
+                      title={item.enchants_detail.map((e) => e.name).join(', ')}
+                    >
+                      {item.enchants_detail
+                        // "Enchant Weapon - Berserker's Rage" is mostly prefix. The slot
+                        // is already the row label, so only the enchant name is new.
+                        .map((e) => e.name.replace(/^Enchant\s+\w+\s+-\s+/, ''))
+                        .join(', ')}
+                    </span>
+                  ) : null}
                 </div>
                 <SlotStanding audit={slotAudit} itemLevel={item.item_level} />
               </div>

@@ -19,6 +19,18 @@ export type GearItem = {
   name: string;
   icon: string;
   item_quality: number;
+  /**
+   * Bonus ids encode the upgrade track — "Hero 1/6" versus "Myth 6/6". Without them a
+   * Wowhead tooltip renders the item at its DEFAULT level, which is the fully-upgraded
+   * one, so an unupgraded item silently reads ~30 levels too high. Item level alone
+   * does not fix this: Wowhead derives the track from bonuses and ignores a bare ilvl.
+   */
+  bonuses?: number[];
+  /** Enchant ids. Item ids live in enchants_detail; these are what Wowhead's `ench` wants. */
+  enchants?: number[];
+  /** Gem ITEM ids (213482, not a gem-slot index) — what Wowhead's `gems` wants. */
+  gems?: number[];
+  enchants_detail?: { id: number; name: string; icon: string }[];
   // azerite_powers and corruption are deliberately not typed: the probe showed them
   // returning legacy junk (tier 999, spell name "Unknown") on current-expansion gear.
 };
