@@ -10,6 +10,8 @@
  * an older version, and none of that should break the page.
  */
 
+import type { SecondaryKey } from '@/lib/domain/stats';
+
 const KEY = 'keystone.savedCharacters';
 const MAX = 30;
 
@@ -25,6 +27,12 @@ export type SavedCharacter = {
   itemLevel: number | null;
   mplusScore: number | null;
   savedAt: number;
+  /**
+   * A hand-arranged secondary order, set when the reader overrides the one measured from
+   * this character's gear. Absent means "use the measured order" — persisting the
+   * measured one would freeze it, and it should keep following the gear as gear changes.
+   */
+  secondaryOrder?: SecondaryKey[];
 };
 
 export function characterKey(region: string, realm: string, name: string): string {
@@ -76,11 +84,45 @@ export function saveCharacter(character: Omit<SavedCharacter, 'savedAt'>): Saved
   const previous = existing.find((c) => c.cacheKey === character.cacheKey);
 
   const next = [
-    { ...character, savedAt: previous?.savedAt ?? Date.now() },
+    {
+      // Carry the override forward. Re-saving happens on every refresh of a pinned
+      // character, and the caller does not know the stored order, so without this a
+      // hand-arranged order would be silently wiped by the next lookup.
+      secondaryOrder: previous?.secondaryOrder,
+      ...character,
+      savedAt: previous?.savedAt ?? Date.now(),
+    },
     ...existing.filter((c) => c.cacheKey !== character.cacheKey),
   ].sort((a, b) => (b.mplusScore ?? 0) - (a.mplusScore ?? 0));
 
   return write(next);
+}
+
+/**
+ * Store a hand-arranged secondary order against an already-saved character.
+ *
+ * A no-op when the character is not pinned: the order still applies for the session, it
+ * simply has nowhere durable to live, and pinning later captures whatever is current.
+ */
+export function setSecondaryOrder(
+  cacheKey: string,
+  secondaryOrder: SecondaryKey[],
+): SavedCharacter[] {
+  const existing = readSaved();
+  if (!existing.some((c) => c.cacheKey === cacheKey)) return existing;
+  return write(existing.map((c) => (c.cacheKey === cacheKey ? { ...c, secondaryOrder } : c)));
+}
+
+/** Drop the override so the order follows the character's gear again. */
+export function clearSecondaryOrder(cacheKey: string): SavedCharacter[] {
+  const existing = readSaved();
+  return write(
+    existing.map((c) => {
+      if (c.cacheKey !== cacheKey) return c;
+      const { secondaryOrder: _dropped, ...rest } = c;
+      return rest;
+    }),
+  );
 }
 
 export function removeCharacter(cacheKey: string): SavedCharacter[] {

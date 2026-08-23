@@ -7,7 +7,8 @@ import { WowIcon } from '@/components/WowIcon';
 import { Banner } from '@/components/ui';
 import { itemIconUrl, qualityColor, wowheadItemUrl } from '@/lib/domain/icons';
 import { PER_SLOT_CHOICES, type CandidateItem, type Recommendations } from '@/lib/domain/recommend';
-import { SECONDARY_LABEL } from '@/lib/domain/stats';
+import { SecondaryOrderChips } from '@/components/SecondaryOrderChips';
+import type { SecondaryKey } from '@/lib/domain/stats';
 import type { SecondaryProfile } from '@/lib/blizzard/character-stats';
 import type { LootSource, ResolvedBuild } from '@/lib/raiderio/recommend-for-character';
 
@@ -23,6 +24,10 @@ export function NextUpgrades({
   recommendations,
   build,
   secondaries,
+  order,
+  onReorder,
+  onResetOrder,
+  overridden,
   perSlot,
   onPerSlot,
   source,
@@ -32,6 +37,11 @@ export function NextUpgrades({
   recommendations: Recommendations;
   build: ResolvedBuild;
   secondaries: SecondaryProfile | null;
+  order: SecondaryKey[];
+  onReorder: (next: SecondaryKey[]) => void;
+  onResetOrder: () => void;
+  /** The reader has rearranged the order away from the measured one. */
+  overridden: boolean;
   perSlot: number;
   onPerSlot: (n: number) => void;
   source: LootSource;
@@ -47,6 +57,10 @@ export function NextUpgrades({
       source={source}
       onSource={onSource}
       secondaries={secondaries}
+      order={order}
+      onReorder={onReorder}
+      onResetOrder={onResetOrder}
+      overridden={overridden}
       busy={busy}
     />
   );
@@ -176,6 +190,10 @@ function Controls({
   source,
   onSource,
   secondaries,
+  order,
+  onReorder,
+  onResetOrder,
+  overridden,
   busy,
 }: {
   perSlot: number;
@@ -183,6 +201,10 @@ function Controls({
   source: LootSource;
   onSource: (v: LootSource) => void;
   secondaries: SecondaryProfile | null;
+  order: SecondaryKey[];
+  onReorder: (next: SecondaryKey[]) => void;
+  onResetOrder: () => void;
+  overridden: boolean;
   busy: boolean;
 }) {
   return (
@@ -231,34 +253,44 @@ function Controls({
       </span>
 
       {/*
-        Read-only: this is measured off the character's own gear, not chosen. Shown with
-        percentages so it is legible as a measurement rather than as a setting someone
-        failed to make clickable.
+        Measured off the character's gear by default, and rearrangeable from there.
+
+        The default is a fact — what they wear — so it needs no configuration and is
+        right for someone who does not know their priority. Overriding it is a claim
+        about what they SHOULD stack, which only the reader knows, so the two are
+        distinguished: an override is labelled and reversible rather than silently
+        replacing the measurement.
       */}
-      {secondaries ? (
-        <span className="flex items-center gap-2">
-          <span
-            className="text-[11px] tracking-wide text-ink-faint uppercase"
-            title="Summed from this character's equipped items. Not a simulated stat priority — it is what they are wearing."
-          >
-            Secondaries
-          </span>
-          <span className="flex gap-1">
-            {secondaries.order.map((key, index) => (
-              <span
-                key={key}
-                className={`rounded-md px-2 py-1 text-xs font-medium ${
-                  index === 0 ? 'bg-accent-muted/45 text-accent' : 'bg-raised text-ink-soft'
-                }`}
-                title={`${secondaries.totals[key].toLocaleString()} rating`}
-              >
-                {SECONDARY_LABEL[key]}{' '}
-                <span className="tabular opacity-70">{secondaries.share[key]}%</span>
-              </span>
-            ))}
-          </span>
+      <span className="flex flex-wrap items-center gap-2">
+        <span
+          className="text-[11px] tracking-wide text-ink-faint uppercase"
+          title={
+            overridden
+              ? 'Your own order. Recommendations are ranked against it.'
+              : "Summed from this character's equipped items — what they wear, not a simulated priority."
+          }
+        >
+          {overridden ? 'Your order' : 'Secondaries'}
         </span>
-      ) : null}
+
+        <SecondaryOrderChips
+          order={order}
+          share={secondaries?.share ?? null}
+          onChange={onReorder}
+          disabled={busy}
+        />
+
+        {overridden ? (
+          <button
+            type="button"
+            onClick={onResetOrder}
+            className="rounded-md px-2 py-1 text-xs text-ink-faint transition-colors hover:text-accent"
+            title="Go back to the order measured from this character's gear"
+          >
+            Reset
+          </button>
+        ) : null}
+      </span>
 
       {busy ? <span className="text-xs text-ink-faint">Updating…</span> : null}
 

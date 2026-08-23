@@ -7,6 +7,7 @@ import { vaultRewardFor } from '@/lib/domain/rewards';
 import { resolveUpgradeTrack, type UpgradeTrack } from '@/lib/domain/upgrade-track';
 import { DEFAULT_PER_SLOT, PER_SLOT_CHOICES } from '@/lib/domain/recommend';
 import { fetchSecondaryProfile } from '@/lib/blizzard/character-stats';
+import { SECONDARY_KEYS, type SecondaryKey } from '@/lib/domain/stats';
 import {
   LOOT_SOURCES,
   recommendForCharacter,
@@ -119,19 +120,37 @@ export async function GET(request: Request) {
   const resolved = await resolveBuild(result.profile, result.profile.talentLoadout?.loadout_spec_id ?? null);
 
   /*
-    Secondary order comes from the character's own gear, not from the caller.
+    The character's own secondary spread, summed from Blizzard's per-item stats.
 
-    A true stat priority is sim output and no API exposes it, so this uses the next best
-    fact: what this character actually has equipped, summed from Blizzard's per-item
-    stats. It is read-only in the UI because it is a measurement, not a preference.
+    This is the DEFAULT ranking basis, not the only one. A true stat priority is sim
+    output that no API exposes, so the default is the nearest available fact — what this
+    character actually wears — which needs no input from someone who does not know their
+    priority. Anyone who does know can override it; see the precedence below.
 
-    Falls back to a neutral order when Blizzard cannot be reached or does not know the
-    character — which is exactly what every lookup did before this existed, so a failure
-    degrades to the old behaviour rather than to an error.
+    Null when Blizzard cannot be reached or does not know the character, which degrades
+    to the neutral order every lookup used before this existed rather than to an error.
   */
   const secondaries = await fetchSecondaryProfile(region, realm, name);
-  const secondaryOrder = (secondaries?.order ??
-    ['haste', 'crit', 'mastery', 'vers']) as unknown as Parameters<typeof recommendForCharacter>[2];
+
+  /*
+    Precedence: an explicit order from the caller, then the measurement, then neutral.
+
+    The caller's order is validated rather than trusted — it reaches the scoring weights,
+    and a hand-edited "order=haste,haste,haste,haste" must not produce a ranking that
+    looks authoritative. Anything that is not a permutation of the four keys is dropped
+    and the measurement is used instead.
+  */
+  const requested = (params.get('order') ?? '')
+    .split(',')
+    .map((k) => k.trim())
+    .filter((k): k is SecondaryKey => (SECONDARY_KEYS as readonly string[]).includes(k));
+
+  const isPermutation =
+    requested.length === SECONDARY_KEYS.length && new Set(requested).size === SECONDARY_KEYS.length;
+
+  const secondaryOrder = ((isPermutation ? requested : null) ??
+    secondaries?.order ??
+    SECONDARY_KEYS) as unknown as Parameters<typeof recommendForCharacter>[2];
 
   // Clamped rather than trusted: this reaches a LIMIT-shaped slice, and a hand-edited
   // "perSlot=500" should degrade to the largest sane list, not render one.

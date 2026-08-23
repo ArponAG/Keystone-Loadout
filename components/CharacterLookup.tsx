@@ -18,11 +18,14 @@ import { classColor, slugIconUrl, wowheadItemUrl } from '@/lib/domain/icons';
 import { formatTrack, trackColor, type UpgradeTrack } from '@/lib/domain/upgrade-track';
 import {
   characterKey,
+  clearSecondaryOrder,
   readSaved,
   removeCharacter,
   saveCharacter,
+  setSecondaryOrder,
   type SavedCharacter,
 } from '@/lib/saved-characters';
+import type { SecondaryKey } from '@/lib/domain/stats';
 import type { GearAudit, SlotAudit } from '@/lib/domain/gear-audit';
 import type { SecondaryProfile } from '@/lib/blizzard/character-stats';
 // One statement, not a value import plus a separate `import type` from the same module:
@@ -38,6 +41,9 @@ const SLOT_ORDER = [
   'hands', 'waist', 'legs', 'feet', 'finger1', 'finger2',
   'trinket1', 'trinket2', 'mainhand', 'offhand',
 ];
+
+/** Used only when Blizzard cannot be read and the reader has not arranged anything. */
+const NEUTRAL_ORDER: SecondaryKey[] = ['haste', 'crit', 'mastery', 'vers'];
 
 const QUALITY_BY_INDEX = ['POOR', 'COMMON', 'UNCOMMON', 'RARE', 'EPIC', 'LEGENDARY', 'ARTIFACT', 'HEIRLOOM'];
 
@@ -72,6 +78,12 @@ export function CharacterLookup() {
   // re-queries the server, so they belong with the other lookup parameters.
   const [perSlot, setPerSlot] = useState<number>(DEFAULT_PER_SLOT);
   const [source, setSource] = useState<LootSource>('all');
+  /*
+    A hand-arranged secondary order. Null means "follow the character's gear", which is
+    the default and the common case — so this is an override, not a copy of the measured
+    order. Copying it would freeze the ranking against gear that keeps changing.
+  */
+  const [orderOverride, setOrderOverride] = useState<SecondaryKey[] | null>(null);
   const [lastQuery, setLastQuery] = useState<{ region: string; realm: string; name: string } | null>(null);
 
   // Pinned characters live in localStorage, not the database — see lib/saved-characters.ts.
@@ -92,9 +104,14 @@ export function CharacterLookup() {
     : null;
   const isSaved = saved.some((c) => c.cacheKey === activeKey);
 
+  // What the chips show and the server ranks against: the reader's arrangement if they
+  // made one, else the measurement, else the neutral fallback used before either existed.
+  const effectiveOrder: SecondaryKey[] =
+    orderOverride ?? data?.secondaries?.order ?? NEUTRAL_ORDER;
+
   async function lookup(
     q: { region: string; realm: string; name: string },
-    overrides?: { perSlot?: number; source?: LootSource },
+    overrides?: { perSlot?: number; source?: LootSource; order?: SecondaryKey[] | null },
   ) {
     setLoading(true);
     setError(null);
@@ -106,6 +123,11 @@ export function CharacterLookup() {
         perSlot: String(overrides?.perSlot ?? perSlot),
         source: overrides?.source ?? source,
       });
+
+      // `order` is omitted entirely when unset, so the route measures from gear rather
+      // than receiving an empty value it would have to interpret.
+      const nextOrder = overrides && 'order' in overrides ? overrides.order : orderOverride;
+      if (nextOrder) query.set('order', nextOrder.join(','));
       const res = await fetch(`/api/character?${query}`);
       const body = await res.json();
 
@@ -124,7 +146,13 @@ export function CharacterLookup() {
   }
 
   function onPick(pick: { region: string; realm: string; name: string }) {
-    void lookup(pick);
+    // A pinned character carries its own arranged order; anyone else starts from gear.
+    const stored = readSaved().find(
+      (c) => c.cacheKey === characterKey(pick.region, pick.realm, pick.name),
+    )?.secondaryOrder;
+
+    setOrderOverride(stored ?? null);
+    void lookup(pick, { order: stored ?? null });
   }
 
   function toggleSave() {
@@ -142,6 +170,9 @@ export function CharacterLookup() {
             thumbnail: data.profile.thumbnail_url,
             itemLevel: Math.round(data.profile.gear?.item_level_equipped ?? 0),
             mplusScore: data.mythicPlus ? Math.round(data.mythicPlus.score) : null,
+            // Pinning captures whatever order is in force, so an arrangement made
+            // before saving is not lost by the act of saving.
+            secondaryOrder: orderOverride ?? undefined,
           }),
     );
   }
@@ -151,7 +182,7 @@ export function CharacterLookup() {
       <SavedCharacters
         saved={saved}
         activeKey={activeKey}
-        onPick={(c) => void lookup({ region: c.region, realm: c.realm, name: c.name })}
+        onPick={(c) => onPick({ region: c.region, realm: c.realm, name: c.name })}
         onRemove={(c) => setSaved(removeCharacter(c.cacheKey))}
       />
 
@@ -174,6 +205,18 @@ export function CharacterLookup() {
             setSource(v);
             if (lastQuery) void lookup(lastQuery, { source: v });
           }}
+          order={effectiveOrder}
+          overridden={orderOverride !== null}
+          onReorder={(next) => {
+            setOrderOverride(next);
+            if (activeKey) setSaved(setSecondaryOrder(activeKey, next));
+            if (lastQuery) void lookup(lastQuery, { order: next });
+          }}
+          onResetOrder={() => {
+            setOrderOverride(null);
+            if (activeKey) setSaved(clearSecondaryOrder(activeKey));
+            if (lastQuery) void lookup(lastQuery, { order: null });
+          }}
           busy={loading}
         />
       ) : null}
@@ -189,6 +232,10 @@ function Profile({
   onPerSlot,
   source,
   onSource,
+  order,
+  overridden,
+  onReorder,
+  onResetOrder,
   busy,
 }: {
   data: Response;
@@ -198,6 +245,10 @@ function Profile({
   onPerSlot: (n: number) => void;
   source: LootSource;
   onSource: (v: LootSource) => void;
+  order: SecondaryKey[];
+  overridden: boolean;
+  onReorder: (next: SecondaryKey[]) => void;
+  onResetOrder: () => void;
   busy: boolean;
 }) {
   const { profile } = data;
@@ -399,6 +450,10 @@ function Profile({
           recommendations={data.recommendations}
           build={data.build}
           secondaries={data.secondaries ?? null}
+          order={order}
+          overridden={overridden}
+          onReorder={onReorder}
+          onResetOrder={onResetOrder}
           perSlot={perSlot}
           onPerSlot={onPerSlot}
           source={source}
