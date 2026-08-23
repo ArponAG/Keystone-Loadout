@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Script from 'next/script';
 
+import { ResetTimers } from '@/components/ResetTimers';
 import { SiteFooter } from '@/components/SiteFooter';
 import { SiteHeader } from '@/components/SiteHeader';
 import { TooltipPosition } from '@/components/TooltipPosition';
@@ -19,6 +20,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SiteHeader />
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">{children}</main>
         <SiteFooter />
+
+        {/* Fixed to the viewport, so it sits outside <main> rather than inside the
+            column - inside, it would scroll away from the reader. */}
+        <ResetTimers />
         <TooltipPosition />
 
         {/*
