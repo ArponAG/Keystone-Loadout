@@ -35,6 +35,11 @@ export const instances = sqliteTable(
    *
    * Set from Raidbots' "Season N Raids" aggregate, which is the raid-side equivalent of
    * the "mplus-chest" entry the rotation flag already comes from.
+   *
+   * Do not widen this to `base_item_level` or to Raider.IO's `raid_progression` keys.
+   * Both say Sporefall is current — its loot is base 219, matching the current tier, and
+   * Raider.IO tracks it — and both are wrong; it is a previous-season raid. The
+   * aggregate is the only signal that got that right.
    */
   inCurrentTier: integer('in_current_tier').notNull().default(0),
     syncedAt: integer('synced_at').notNull(),
