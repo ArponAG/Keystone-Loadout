@@ -34,6 +34,21 @@
   --color-q-artifact: #e6cc80;
   --color-q-heirloom: #00ccff;
 
+  /* --- class colours (canonical WoW values, do not alter) --- */
+  --color-class-death-knight: #c41e3a;
+  --color-class-demon-hunter: #a330c9;
+  --color-class-druid: #ff7c0a;
+  --color-class-evoker: #33937f;
+  --color-class-hunter: #aad372;
+  --color-class-mage: #3fc7eb;
+  --color-class-monk: #00ff98;
+  --color-class-paladin: #f48cba;
+  --color-class-priest: #ffffff;
+  --color-class-rogue: #fff468;
+  --color-class-shaman: #0070dd;
+  --color-class-warlock: #8788ee;
+  --color-class-warrior: #c69b6d;
+
   /* --- fit score ramp --- */
   --color-fit-90: #4ade80;
   --color-fit-75: #a3e635;

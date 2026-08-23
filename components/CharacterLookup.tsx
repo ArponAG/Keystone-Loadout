@@ -299,21 +299,30 @@ function Profile({
             value={scores?.all != null ? Math.round(scores.all) : '—'}
             color={data.mythicPlus?.colour}
           />
+          {/*
+            Icon only, so state has to be carried by the icon itself: a hollow bookmark
+            is an invitation, a filled one is a fact. aria-pressed and aria-label do the
+            work the removed label used to, since a lone glyph names nothing.
+          */}
           <button
             type="button"
             onClick={onToggleSave}
-            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all ${
+            aria-pressed={isSaved}
+            aria-label={isSaved ? `Unpin ${profile.name}` : `Pin ${profile.name}`}
+            title={isSaved ? 'Unpin this character' : 'Pin this character'}
+            className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg transition-colors ${
               isSaved
-                ? 'border-accent bg-accent-muted/40 text-accent shadow-xs'
-                : 'border-line-strong bg-raised text-ink-soft hover:border-accent hover:text-accent'
+                ? 'bg-accent-muted/40 text-accent hover:bg-accent-muted/60'
+                : 'text-ink-faint hover:bg-raised hover:text-accent'
             }`}
-            title={isSaved ? 'Remove from saved characters' : 'Pin this character'}
           >
             <svg
-              className={`h-3.5 w-3.5 ${isSaved ? 'fill-accent' : 'fill-none stroke-current'}`}
+              className="h-[18px] w-[18px] transition-transform active:scale-90"
               viewBox="0 0 24 24"
-              strokeWidth="2"
+              fill={isSaved ? 'currentColor' : 'none'}
               stroke="currentColor"
+              strokeWidth="1.8"
+              aria-hidden="true"
             >
               <path
                 strokeLinecap="round"
@@ -321,7 +330,6 @@ function Profile({
                 d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z"
               />
             </svg>
-            <span>{isSaved ? 'Saved' : 'Pin'}</span>
           </button>
         </div>
       </div>

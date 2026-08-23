@@ -70,6 +70,27 @@ export function qualityColor(quality: string | null | undefined): string {
 }
 
 /**
+ * Class colour for a display name like "Death Knight" or "Paladin".
+ *
+ * Every WoW UI colours character names by class, so a rail of pinned characters is
+ * readable at a glance without labelling each one. Falls back to plain ink rather than
+ * guessing, so an unrecognised or newly-added class degrades quietly.
+ */
+export function classColor(className: string | null | undefined): string {
+  if (!className) return 'var(--color-ink)';
+  const slug = className.trim().toLowerCase().replace(/\s+/g, '-');
+  return CLASS_SLUGS.has(slug) ? `var(--color-class-${slug})` : 'var(--color-ink)';
+}
+
+// Matched against the --color-class-* tokens in globals.css. Kept as an explicit set so
+// a typo or an unknown class falls back instead of emitting a var() that resolves to
+// nothing and renders the name invisible.
+const CLASS_SLUGS = new Set([
+  'death-knight', 'demon-hunter', 'druid', 'evoker', 'hunter', 'mage', 'monk',
+  'paladin', 'priest', 'rogue', 'shaman', 'warlock', 'warrior',
+]);
+
+/**
  * The specific copy of an item somebody is wearing, as opposed to the generic item.
  * Every field is optional so callers holding only an id (the gear finder, which lists
  * items nobody owns yet) can keep passing nothing.
