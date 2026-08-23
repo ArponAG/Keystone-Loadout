@@ -14,9 +14,10 @@
     "sync:loot": "tsx scripts/sync-loot.ts",
     "test": "tsx --test lib/**/*.test.ts",
     "sync:news": "tsx scripts/sync-news.ts",
-    "sync:all": "npm run sync:instances && npm run sync:loot && npm run sync:news",
+    "sync:all": "npm run sync:instances && npm run sync:loot && npm run sync:news && npm run sync:upgrade-tracks",
     "verify": "tsx scripts/verify-assumptions.ts",
-    "sync:safe": "npm run verify && npm run sync:all"
+    "sync:safe": "npm run verify && npm run sync:all",
+    "sync:upgrade-tracks": "tsx scripts/sync-upgrade-tracks.ts"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",

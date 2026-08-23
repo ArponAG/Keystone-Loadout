@@ -11,6 +11,7 @@ import { WowIcon } from '@/components/WowIcon';
 import { Banner } from '@/components/ui';
 import { ago, realmLabel } from '@/lib/domain/format';
 import { classColor, slugIconUrl, wowheadItemUrl } from '@/lib/domain/icons';
+import { formatTrack, trackColor, type UpgradeTrack } from '@/lib/domain/upgrade-track';
 import {
   characterKey,
   readSaved,
@@ -35,6 +36,8 @@ const QUALITY_BY_INDEX = ['POOR', 'COMMON', 'UNCOMMON', 'RARE', 'EPIC', 'LEGENDA
 
 type Response = {
   profile: CharacterProfile;
+  /** Upgrade track per slot, resolved server-side from bonus ids. */
+  tracks?: Record<string, UpgradeTrack | null>;
   talents: TalentBuild | null;
   mythicPlus: MythicPlus | null;
   audit: GearAudit;
@@ -344,7 +347,11 @@ function Profile({
                     </span>
                   ) : null}
                 </div>
-                <SlotStanding audit={slotAudit} itemLevel={item.item_level} />
+                <SlotStanding
+                  audit={slotAudit}
+                  itemLevel={item.item_level}
+                  track={data.tracks?.[slot] ?? null}
+                />
               </div>
             );
           })}
@@ -411,7 +418,15 @@ function Stat({ label, value, color }: { label: string; value: string | number; 
   );
 }
 
-function SlotStanding({ audit, itemLevel }: { audit?: SlotAudit; itemLevel: number }) {
+function SlotStanding({
+  audit,
+  itemLevel,
+  track,
+}: {
+  audit?: SlotAudit;
+  itemLevel: number;
+  track: UpgradeTrack | null;
+}) {
   const colour =
     audit?.verdict === 'weak'
       ? 'var(--color-stale)'
@@ -419,31 +434,63 @@ function SlotStanding({ audit, itemLevel }: { audit?: SlotAudit; itemLevel: numb
         ? 'var(--color-ok)'
         : 'var(--color-ink-soft)';
 
+  const maxed = track ? track.rank >= track.maxRank : false;
+
   return (
-    <span className="flex shrink-0 items-center gap-2">
-      {audit?.belowVault ? (
+    <span className="flex shrink-0 flex-col items-end gap-1">
+      <span className="flex items-center gap-2">
+        {audit?.belowVault ? (
+          <span
+            className="tabular rounded-md px-1.5 py-0.5 text-xs font-semibold"
+            style={{
+              color: 'var(--color-stale)',
+              backgroundColor: 'color-mix(in srgb, var(--color-stale) 15%, transparent)',
+            }}
+            title={`${audit.belowVault} below the vault reward for your key level`}
+          >
+            −{audit.belowVault}
+          </span>
+        ) : null}
         <span
-          className="tabular rounded-md px-1.5 py-0.5 text-xs font-semibold"
-          style={{
-            color: 'var(--color-stale)',
-            backgroundColor: 'color-mix(in srgb, var(--color-stale) 15%, transparent)',
-          }}
-          title={`${audit.belowVault} below the vault reward for your key level`}
+          className="tabular text-num font-bold"
+          style={{ color: colour }}
+          title={
+            audit && audit.verdict !== 'unjudged'
+              ? `${audit.vsAverage >= 0 ? '+' : ''}${audit.vsAverage} vs your average`
+              : 'Not judged by item level'
+          }
         >
-          −{audit.belowVault}
+          {itemLevel}
+        </span>
+      </span>
+
+      {/*
+        The track badge sits under the item level because it explains it: 305 means
+        something different on a Hero item than on a Myth one. Track name and rank are
+        one badge rather than two, since "Hero" without "1/6" hides the useful half —
+        a Hero 1/6 has five upgrades left, a Hero 6/6 has none.
+      */}
+      {track ? (
+        <span
+          className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] leading-none font-semibold tracking-wide"
+          style={{
+            color: trackColor(track.track),
+            backgroundColor: `color-mix(in srgb, ${trackColor(track.track)} 14%, transparent)`,
+          }}
+          title={
+            maxed
+              ? `${formatTrack(track)} — fully upgraded`
+              : `${formatTrack(track)} — ${track.maxRank - track.rank} upgrade${
+                  track.maxRank - track.rank > 1 ? 's' : ''
+                } still available`
+          }
+        >
+          {track.track}
+          <span className="tabular opacity-70">
+            {track.rank}/{track.maxRank}
+          </span>
         </span>
       ) : null}
-      <span
-        className="tabular text-num font-bold"
-        style={{ color: colour }}
-        title={
-          audit && audit.verdict !== 'unjudged'
-            ? `${audit.vsAverage >= 0 ? '+' : ''}${audit.vsAverage} vs your average`
-            : 'Not judged by item level'
-        }
-      >
-        {itemLevel}
-      </span>
     </span>
   );
 }

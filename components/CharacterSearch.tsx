@@ -30,6 +30,7 @@ export function CharacterSearch({
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [focused, setFocused] = useState(false);
   const [highlight, setHighlight] = useState(-1);
 
   const boxRef = useRef<HTMLDivElement>(null);
@@ -120,10 +121,25 @@ export function CharacterSearch({
 
   return (
     <div ref={boxRef} className="relative mb-6">
+      {/*
+        Focus lives on this box, not on the input inside it.
+
+        The global :focus-visible outline is right for buttons, but here it drew a second
+        gold rectangle inset within the border this box already has — two nested outlines
+        where the user sees one control. So the input suppresses that outline and the
+        wrapper brightens its own border instead, via focus-within.
+
+        The replacement is still a real focus indicator: ink-faint against this surface
+        clears 3:1, so it meets WCAG's focus-appearance contrast the same way the outline
+        did. It is neutral rather than accent-coloured only because the accent reads as
+        "selected" everywhere else in the app.
+      */}
       <div
-        className={`flex items-center gap-3 rounded-xl border bg-surface/70 px-4 transition-colors ${
-          open ? 'border-line-strong' : 'border-line hover:border-line-strong'
-        }`}
+        className="flex items-center gap-3 rounded-xl border border-line bg-surface/70 px-4 transition-colors hover:border-line-strong"
+        // Driven from state rather than a focus-within utility: the utility is generated
+        // correctly but loses the cascade here, and an inline style is not worth the
+        // archaeology to find out to what.
+        style={focused ? { borderColor: 'var(--color-ink-faint)' } : undefined}
       >
         <SearchIcon />
 
@@ -134,7 +150,11 @@ export function CharacterSearch({
             setTerm(e.target.value);
             setOpen(true);
           }}
-          onFocus={() => setOpen(true)}
+          onFocus={() => {
+            setOpen(true);
+            setFocused(true);
+          }}
+          onBlur={() => setFocused(false)}
           onKeyDown={onKeyDown}
           placeholder="Search for a character…"
           aria-label="Search for a character"
@@ -142,6 +162,8 @@ export function CharacterSearch({
           role="combobox"
           aria-expanded={open}
           aria-controls="character-suggestions"
+          // The wrapper renders this input's focus indicator — see globals.css.
+          data-focus-ring="self"
           className="w-full bg-transparent py-3.5 text-base text-ink outline-none placeholder:text-ink-faint"
         />
 

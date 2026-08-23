@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { db, dbReady, schema } from '@/lib/db';
 import { auditGear, typicalKeyLevel } from '@/lib/domain/gear-audit';
 import { vaultRewardFor } from '@/lib/domain/rewards';
+import { resolveUpgradeTrack, type UpgradeTrack } from '@/lib/domain/upgrade-track';
 import {
   recommendForCharacter,
   resolveBuild,
@@ -87,6 +88,30 @@ export async function GET(request: Request) {
       : null,
   );
 
+  // Upgrade track per slot, resolved server-side. The lookup table is ~100 rows, so it
+  // is read whole and turned into a Map rather than queried once per item.
+  const trackRows = db
+    .select({
+      bonusId: schema.upgradeTracks.bonusId,
+      track: schema.upgradeTracks.track,
+      rank: schema.upgradeTracks.rank,
+      maxRank: schema.upgradeTracks.maxRank,
+    })
+    .from(schema.upgradeTracks)
+    .all();
+
+  const trackLookup = new Map(
+    trackRows.map((r) => [r.bonusId, { track: r.track, rank: r.rank, maxRank: r.maxRank }]),
+  );
+
+  // Keyed by slot rather than folded into the gear items, so the upstream Raider.IO
+  // shape stays exactly as Raider.IO sent it. An empty table (sync never run) yields
+  // nulls throughout and the UI simply omits the badge.
+  const tracks: Record<string, UpgradeTrack | null> = {};
+  for (const [slot, item] of Object.entries(profile.gear?.items ?? {})) {
+    tracks[slot] = resolveUpgradeTrack(item.bonuses, trackLookup);
+  }
+
   const resolved = await resolveBuild(result.profile, result.profile.talentLoadout?.loadout_spec_id ?? null);
 
   // Stat priority is the one thing no API knows — it is sim output. Default to a
@@ -102,6 +127,7 @@ export async function GET(request: Request) {
   return NextResponse.json(
     {
       profile,
+      tracks,
       build: resolved,
       recommendations,
       // Shaped server-side: Raider.IO's raw talent payload is 31 KB of tree-node data

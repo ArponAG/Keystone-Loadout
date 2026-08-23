@@ -8,7 +8,7 @@ import { and, eq, lt } from 'drizzle-orm';
 
 import { db, schema } from './client';
 
-export type SyncSource = 'instances' | 'loot' | 'news';
+export type SyncSource = 'instances' | 'loot' | 'news' | 'upgrade-tracks';
 
 /** A 'running' row older than this is treated as a crashed process. */
 const STALE_RUNNING_MS = 30 * 60_000;

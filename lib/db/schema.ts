@@ -186,6 +186,27 @@ export const keystoneRewards = sqliteTable('keystone_rewards', {
   syncedAt: integer('synced_at').notNull(),
 });
 
+/** Upgrade track and rank per item bonus id — "Hero 1/6", "Myth 6/6".
+ *
+ *  Nothing in the Raider.IO or Blizzard payloads states an item's upgrade track: both
+ *  give an item level and a bonus list, and the track is derived from the bonuses.
+ *  Wowhead does that derivation, so `sync:upgrade-tracks` reads it back from their
+ *  tooltips once and stores it here; at request time this is a pure local lookup.
+ *
+ *  Keyed by bonus id rather than computed from a formula on purpose. The ids do sit in
+ *  regular runs of six, but there are SEVERAL such blocks live at once (12793-12806 and
+ *  12817-12854 both resolve as of this writing) and the ranges move between patches, so
+ *  any arithmetic shortcut would silently mislabel gear. Re-run the sync after a patch. */
+export const upgradeTracks = sqliteTable('upgrade_tracks', {
+  /** The single bonus id that carries the track. An item's other bonuses are unrelated. */
+  bonusId: integer('bonus_id').primaryKey(),
+  /** 'Explorer' | 'Adventurer' | 'Veteran' | 'Champion' | 'Hero' | 'Myth', verbatim. */
+  track: text('track').notNull(),
+  rank: integer('rank').notNull(),
+  maxRank: integer('max_rank').notNull(),
+  syncedAt: integer('synced_at').notNull(),
+});
+
 /** Playable specialisations, synced from Blizzard.
  *
  *  Exists so the character page can resolve a spec to its primary stat from DATA
