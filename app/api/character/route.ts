@@ -6,6 +6,7 @@ import { auditGear, typicalKeyLevel } from '@/lib/domain/gear-audit';
 import { vaultRewardFor } from '@/lib/domain/rewards';
 import { resolveUpgradeTrack, type UpgradeTrack } from '@/lib/domain/upgrade-track';
 import { DEFAULT_PER_SLOT, PER_SLOT_CHOICES } from '@/lib/domain/recommend';
+import { fetchSecondaryProfile } from '@/lib/blizzard/character-stats';
 import {
   LOOT_SOURCES,
   recommendForCharacter,
@@ -117,13 +118,20 @@ export async function GET(request: Request) {
 
   const resolved = await resolveBuild(result.profile, result.profile.talentLoadout?.loadout_spec_id ?? null);
 
-  // Stat priority is the one thing no API knows — it is sim output. Default to a
-  // neutral order so a new player gets an answer without configuring anything, and
-  // let the UI override it. See planning/05-ui.md.
-  const order = (params.get('order') ?? '').split(',').filter(Boolean);
-  const secondaryOrder = (
-    order.length === 4 ? order : ['haste', 'crit', 'mastery', 'vers']
-  ) as unknown as Parameters<typeof recommendForCharacter>[2];
+  /*
+    Secondary order comes from the character's own gear, not from the caller.
+
+    A true stat priority is sim output and no API exposes it, so this uses the next best
+    fact: what this character actually has equipped, summed from Blizzard's per-item
+    stats. It is read-only in the UI because it is a measurement, not a preference.
+
+    Falls back to a neutral order when Blizzard cannot be reached or does not know the
+    character — which is exactly what every lookup did before this existed, so a failure
+    degrades to the old behaviour rather than to an error.
+  */
+  const secondaries = await fetchSecondaryProfile(region, realm, name);
+  const secondaryOrder = (secondaries?.order ??
+    ['haste', 'crit', 'mastery', 'vers']) as unknown as Parameters<typeof recommendForCharacter>[2];
 
   // Clamped rather than trusted: this reaches a LIMIT-shaped slice, and a hand-edited
   // "perSlot=500" should degrade to the largest sane list, not render one.
@@ -146,6 +154,7 @@ export async function GET(request: Request) {
     {
       profile,
       tracks,
+      secondaries,
       build: resolved,
       recommendations,
       // Shaped server-side: Raider.IO's raw talent payload is 31 KB of tree-node data

@@ -7,7 +7,8 @@ import { WowIcon } from '@/components/WowIcon';
 import { Banner } from '@/components/ui';
 import { itemIconUrl, qualityColor, wowheadItemUrl } from '@/lib/domain/icons';
 import { PER_SLOT_CHOICES, type CandidateItem, type Recommendations } from '@/lib/domain/recommend';
-import { SECONDARY_LABEL, type SecondaryKey } from '@/lib/domain/stats';
+import { SECONDARY_LABEL } from '@/lib/domain/stats';
+import type { SecondaryProfile } from '@/lib/blizzard/character-stats';
 import type { LootSource, ResolvedBuild } from '@/lib/raiderio/recommend-for-character';
 
 /**
@@ -21,8 +22,7 @@ import type { LootSource, ResolvedBuild } from '@/lib/raiderio/recommend-for-cha
 export function NextUpgrades({
   recommendations,
   build,
-  order,
-  onReorder,
+  secondaries,
   perSlot,
   onPerSlot,
   source,
@@ -31,8 +31,7 @@ export function NextUpgrades({
 }: {
   recommendations: Recommendations;
   build: ResolvedBuild;
-  order: SecondaryKey[];
-  onReorder: (next: SecondaryKey[]) => void;
+  secondaries: SecondaryProfile | null;
   perSlot: number;
   onPerSlot: (n: number) => void;
   source: LootSource;
@@ -47,8 +46,7 @@ export function NextUpgrades({
       onPerSlot={onPerSlot}
       source={source}
       onSource={onSource}
-      order={order}
-      onReorder={onReorder}
+      secondaries={secondaries}
       busy={busy}
     />
   );
@@ -127,8 +125,9 @@ export function NextUpgrades({
       ) : null}
 
       <p className="mt-3 text-xs leading-relaxed text-ink-faint">
-        The percentage is how much of an item’s secondary stats land on your priority — a
-        heuristic, not a simulation. For a real answer, sim it on{' '}
+        The percentage is how closely an item’s secondary stats match the spread this
+        character already wears — a heuristic, not a simulation, and not a claim about
+        what the spec <em>should</em> stack. For that, sim it on{' '}
         <a
           href="https://www.raidbots.com/simbot/droptimizer"
           target="_blank"
@@ -176,16 +175,14 @@ function Controls({
   onPerSlot,
   source,
   onSource,
-  order,
-  onReorder,
+  secondaries,
   busy,
 }: {
   perSlot: number;
   onPerSlot: (n: number) => void;
   source: LootSource;
   onSource: (v: LootSource) => void;
-  order: SecondaryKey[];
-  onReorder: (next: SecondaryKey[]) => void;
+  secondaries: SecondaryProfile | null;
   busy: boolean;
 }) {
   return (
@@ -234,36 +231,34 @@ function Controls({
       </span>
 
       {/*
-        Stat priority sits with the other controls rather than in a collapsed section at
-        the bottom. It changes the order of every list above it, so hiding it behind a
-        toggle put a control that reshapes the whole answer below the answer itself —
-        and a new player never found out the ranking was tunable at all.
+        Read-only: this is measured off the character's own gear, not chosen. Shown with
+        percentages so it is legible as a measurement rather than as a setting someone
+        failed to make clickable.
       */}
-      <span className="flex items-center gap-2">
-        <span className="text-[11px] tracking-wide text-ink-faint uppercase">Stat priority</span>
-        <span className="flex gap-1">
-          {order.map((key, index) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => {
-                const next = [...order];
-                next.splice(index, 1);
-                next.unshift(key);
-                onReorder(next);
-              }}
-              className={`rounded-md px-2 py-1 text-xs font-medium transition-colors ${
-                index === 0
-                  ? 'bg-accent-muted/45 text-accent'
-                  : 'bg-raised text-ink-soft hover:text-ink'
-              }`}
-              title={`Rank ${SECONDARY_LABEL[key]} first`}
-            >
-              {SECONDARY_LABEL[key]}
-            </button>
-          ))}
+      {secondaries ? (
+        <span className="flex items-center gap-2">
+          <span
+            className="text-[11px] tracking-wide text-ink-faint uppercase"
+            title="Summed from this character's equipped items. Not a simulated stat priority — it is what they are wearing."
+          >
+            Secondaries
+          </span>
+          <span className="flex gap-1">
+            {secondaries.order.map((key, index) => (
+              <span
+                key={key}
+                className={`rounded-md px-2 py-1 text-xs font-medium ${
+                  index === 0 ? 'bg-accent-muted/45 text-accent' : 'bg-raised text-ink-soft'
+                }`}
+                title={`${secondaries.totals[key].toLocaleString()} rating`}
+              >
+                {SECONDARY_LABEL[key]}{' '}
+                <span className="tabular opacity-70">{secondaries.share[key]}%</span>
+              </span>
+            ))}
+          </span>
         </span>
-      </span>
+      ) : null}
 
       {busy ? <span className="text-xs text-ink-faint">Updating…</span> : null}
 

@@ -24,11 +24,11 @@ import {
   type SavedCharacter,
 } from '@/lib/saved-characters';
 import type { GearAudit, SlotAudit } from '@/lib/domain/gear-audit';
+import type { SecondaryProfile } from '@/lib/blizzard/character-stats';
 // One statement, not a value import plus a separate `import type` from the same module:
 // the bundler collapses the pair, keeps the type-only marker, and elides the value —
 // which typechecks cleanly and then throws ReferenceError in the browser.
 import { DEFAULT_PER_SLOT, type Recommendations } from '@/lib/domain/recommend';
-import type { SecondaryKey } from '@/lib/domain/stats';
 import type { LootSource, ResolvedBuild } from '@/lib/raiderio/recommend-for-character';
 import type { CharacterProfile, MythicPlus, TalentBuild } from '@/lib/raiderio/character';
 
@@ -45,6 +45,8 @@ type Response = {
   profile: CharacterProfile;
   /** Upgrade track per slot, resolved server-side from bonus ids. */
   tracks?: Record<string, UpgradeTrack | null>;
+  /** Measured off equipped gear. Null when Blizzard could not be read. */
+  secondaries?: SecondaryProfile | null;
   talents: TalentBuild | null;
   mythicPlus: MythicPlus | null;
   audit: GearAudit;
@@ -66,7 +68,6 @@ export function CharacterLookup() {
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<Response | null>(null);
   const [saved, setSaved] = useState<SavedCharacter[]>([]);
-  const [order, setOrder] = useState<SecondaryKey[]>(['haste', 'crit', 'mastery', 'vers']);
   // Recommendation shape lives here rather than in NextUpgrades: changing either one
   // re-queries the server, so they belong with the other lookup parameters.
   const [perSlot, setPerSlot] = useState<number>(DEFAULT_PER_SLOT);
@@ -93,7 +94,7 @@ export function CharacterLookup() {
 
   async function lookup(
     q: { region: string; realm: string; name: string },
-    overrides?: { order?: SecondaryKey[]; perSlot?: number; source?: LootSource },
+    overrides?: { perSlot?: number; source?: LootSource },
   ) {
     setLoading(true);
     setError(null);
@@ -102,7 +103,6 @@ export function CharacterLookup() {
     try {
       const query = new URLSearchParams({
         ...q,
-        order: (overrides?.order ?? order).join(','),
         perSlot: String(overrides?.perSlot ?? perSlot),
         source: overrides?.source ?? source,
       });
@@ -164,11 +164,6 @@ export function CharacterLookup() {
           data={data}
           isSaved={isSaved}
           onToggleSave={toggleSave}
-          order={order}
-          onReorder={(next) => {
-            setOrder(next);
-            if (lastQuery) void lookup(lastQuery, { order: next });
-          }}
           perSlot={perSlot}
           onPerSlot={(n) => {
             setPerSlot(n);
@@ -190,8 +185,6 @@ function Profile({
   data,
   isSaved,
   onToggleSave,
-  order,
-  onReorder,
   perSlot,
   onPerSlot,
   source,
@@ -201,8 +194,6 @@ function Profile({
   data: Response;
   isSaved: boolean;
   onToggleSave: () => void;
-  order: SecondaryKey[];
-  onReorder: (next: SecondaryKey[]) => void;
   perSlot: number;
   onPerSlot: (n: number) => void;
   source: LootSource;
@@ -407,8 +398,7 @@ function Profile({
         <NextUpgrades
           recommendations={data.recommendations}
           build={data.build}
-          order={order}
-          onReorder={onReorder}
+          secondaries={data.secondaries ?? null}
           perSlot={perSlot}
           onPerSlot={onPerSlot}
           source={source}
