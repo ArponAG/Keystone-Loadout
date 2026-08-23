@@ -242,3 +242,33 @@ Data from [Raidbots](https://www.raidbots.com), [Raider.IO](https://raider.io),
 
 Blizzard's API terms forbid commercial use without an agreement. Raidbots asks for at
 most one request per ten seconds and a backlink; both are honoured.
+
+## Deploying to ZimaOS
+
+`Z:\` is the box's `/DATA`, bridged locally, so the source is copied as a plain file
+copy; SSH is only used to tell Docker to rebuild.
+
+```powershell
+.\deploy.ps1 -Setup     # first time: build, create the schema, sync game data (~10 min)
+.\deploy.ps1            # afterwards: copy changes, rebuild, restart
+.\deploy.ps1 -NoBuild   # copy and restart only, no image rebuild
+```
+
+Runs at **http://192.168.50.94:8095**. LAN only — do not port-forward it: `/sync` has no
+authentication and can start syncs that make hundreds of Blizzard requests.
+
+Four things about this box that the script encodes, each of which broke the first
+attempt:
+
+- **`/` is read-only**, so the Docker CLI cannot create `/root/.docker`. `DOCKER_CONFIG`
+  is redirected to `/DATA/AppData/.docker`.
+- **The bind-mounted `data/` is owned by root**, while the container runs as uid 1001.
+  The image's build-time `chown` is masked by the mount, so `-Setup` chowns the host
+  directory — without it the migration reports success and writes nothing.
+- **`zima_ssh.py` always exits 0** and reports the remote status by printing `--EXIT n--`
+  on stderr, so the script matches that string rather than reading `$LASTEXITCODE`.
+- **It also caps a command at 300s**, and the loot sync alone takes ~560s, so `-Setup`
+  starts the sync detached and polls a log.
+
+`.env.local` is copied once and then excluded from the mirror (`/XF`), so `/MIR` cannot
+delete the credentials from the server if the local file ever goes missing.

@@ -1,0 +1,64 @@
+# Keystone Loadout — ZimaOS / CasaOS deployment.
+#
+# Deployed by deploy.ps1, which copies this and the source to
+# Z:\AppData\keystone-loadout (= /DATA/AppData/keystone-loadout on the box) and then
+# builds there. It is a separate file from docker-compose.yml so the plain local
+# workflow keeps working unchanged.
+#
+# Built ON the server rather than pushed as an image: the build compiles better-sqlite3
+# from source, so the machine that compiles it should be the machine that runs it.
+
+services:
+  keystone-loadout:
+    build: .
+    container_name: keystone-loadout
+    restart: unless-stopped
+    ports:
+      # 8095 because the box already has 3000, 8000, 8080, 8090, 8096, 8111, 8112,
+      # 8888 and 8921 bound. Container port stays 3000 — that is internal and cannot
+      # collide with the host's.
+      #
+      # LAN only. Do not port-forward this: /sync can start syncs that make hundreds of
+      # requests against your Blizzard credentials, and it has no authentication.
+      - "8095:3000"
+    env_file:
+      # env_file, NOT ${VAR} interpolation: Compose interpolates from `.env`, so
+      # ${BLIZZARD_CLIENT_SECRET} would silently expand to empty and the container would
+      # fail its first OAuth call for no visible reason.
+      - .env.local
+    volumes:
+      # Absolute, not ./data — CasaOS may invoke compose from another working directory,
+      # and a relative bind would then silently create an empty database somewhere else
+      # rather than failing. Survives rebuilds.
+      - /DATA/AppData/keystone-loadout/data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 40s
+
+    # Tile metadata for the CasaOS dashboard. Ignored by plain `docker compose`.
+    x-casaos:
+      author: self
+      category: Games
+      description:
+        en_us: >-
+          Mythic+ gear planner for WoW Retail. Look up a character, see which slots are
+          behind the Great Vault reward, and what drops where.
+      developer: self
+      # Served by the app itself, so the tile has no third-party dependency.
+      icon: http://192.168.50.94:8095/icon.svg
+      index: /
+      is_uncontrolled: false
+      port_map: "8095"
+      scheme: http
+      store_app_id: keystone-loadout
+      title:
+        en_us: Keystone Loadout
+      webui_port: 8095
+
+x-casaos:
+  architectures:
+    - amd64
+  main: keystone-loadout
+  store_app_id: keystone-loadout
