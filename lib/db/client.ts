@@ -55,6 +55,26 @@ const globalForDb = globalThis as unknown as { __sqlite?: Database.Database };
 
 function createConnection(): Database.Database {
   const sqlite = new Database(DB_PATH);
+
+  /*
+    busy_timeout FIRST, and it is not optional.
+
+    Opening the database happens at module load, so anything that imports this module
+    opens a connection — including every one of the workers Next uses. `next build`
+    collects page data with 12 of them in parallel, and `journal_mode = WAL` needs a
+    write lock, so on a database file that does not exist yet they all race to create it
+    and set the same pragma. The losers get SQLITE_BUSY and the build dies with
+    "Failed to collect page data for /sync".
+
+    That failure is intermittent, which is what makes it nasty: it took down a deploy,
+    then "passed" on the next attempt only because Docker had cached the layer.
+
+    Without a timeout SQLite fails a contended lock immediately rather than waiting.
+    Five seconds is far longer than any of these writes needs and costs nothing when
+    uncontended. This matters at runtime too — the production server also serves from
+    multiple workers against one file.
+  */
+  sqlite.pragma('busy_timeout = 5000');
   sqlite.pragma('journal_mode = WAL');
   sqlite.pragma('foreign_keys = ON');
   return sqlite;

@@ -249,10 +249,21 @@ most one request per ten seconds and a backlink; both are honoured.
 copy; SSH is only used to tell Docker to rebuild.
 
 ```powershell
-.\deploy.ps1 -Setup     # first time: build, create the schema, sync game data (~10 min)
-.\deploy.ps1            # afterwards: copy changes, rebuild, restart
-.\deploy.ps1 -NoBuild   # copy and restart only, no image rebuild
+.\deploy.ps1            # everything
+.\deploy.ps1 -Sync      # force a game-data sync even if it looks fresh
+.\deploy.ps1 -NoBuild   # skip the image rebuild
 ```
+
+There is no setup flag and nothing to remember. Every run copies the source, rebuilds,
+chowns the data volume, applies pending migrations, and then asks `scripts/data-age.ts`
+whether the game data is stale before deciding to sync.
+
+Migrations run every time because `drizzle-kit migrate` is a no-op when nothing is
+pending, and the alternative is a deploy that reports success and then serves
+`no such column`. The sync is conditional because `sync:all` is ~10 minutes and several
+hundred Blizzard requests, so it runs only when a source is missing or older than the
+same staleness threshold the in-app banner uses.
+
 
 Runs at **http://192.168.50.94:8095**. LAN only — do not port-forward it: `/sync` has no
 authentication and can start syncs that make hundreds of Blizzard requests.

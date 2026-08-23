@@ -10,6 +10,18 @@ import { db, schema } from './client';
 
 export type SyncSource = 'instances' | 'loot' | 'news' | 'upgrade-tracks';
 
+/** Every source the app needs before it can rank anything honestly. */
+export const REQUIRED_SOURCES: SyncSource[] = ['instances', 'loot', 'news', 'upgrade-tracks'];
+
+/**
+ * Older than this and the data is stale.
+ *
+ * Lives here rather than in freshness.ts because that module carries the `server-only`
+ * guard, and the deploy script needs the same number to decide whether to re-sync.
+ * Two copies of "7 days" is how the banner and the deploy end up disagreeing.
+ */
+export const STALE_AFTER_MS = 7 * 86_400_000;
+
 /** A 'running' row older than this is treated as a crashed process. */
 const STALE_RUNNING_MS = 30 * 60_000;
 

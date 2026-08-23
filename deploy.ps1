@@ -7,13 +7,13 @@
       2. RUN    - Docker has to be told to rebuild, which needs a shell on the box.
 
     Usage:
-      .\deploy.ps1              copy changed files, rebuild, restart
-      .\deploy.ps1 -Setup       first run: also migrate the database and sync game data
-      .\deploy.ps1 -NoBuild     copy and restart only, skipping the image rebuild
+      .\deploy.ps1              everything: copy, rebuild, migrate, sync if stale
+      .\deploy.ps1 -Sync        force a game-data sync even if it looks fresh
+      .\deploy.ps1 -NoBuild     skip the image rebuild (migrations and the check still run)
 #>
 [CmdletBinding()]
 param(
-    [switch]$Setup,
+    [switch]$Sync,
     [switch]$NoBuild
 )
 
@@ -129,31 +129,52 @@ if ($NoBuild) {
     Invoke-Box "cd $BoxRoot && docker compose up -d --build"
 }
 
-if ($Setup) {
-    # The image chowns /app/data at build time, but the bind mount replaces that with the
-    # host's ownership at runtime, so the container user (1001) cannot create the
-    # database. Without this the migration "succeeds" and writes nothing.
-    Say "Granting the container write access to the data volume ..."
-    Invoke-Box "chown -R 1001:1001 $BoxRoot/data"
+# --- 3. Bring the server's state up to match the code --------------------------
+# All of this runs on EVERY deploy, because a flag you have to remember is a flag you
+# forget on the one deploy that needed it.
 
-    Say "Creating the database schema ..."
-    Invoke-Box "cd $BoxRoot && docker compose exec -T keystone-loadout npx drizzle-kit migrate"
+# Idempotent and instant when already correct. Needed because the image chowns /app/data
+# at build time but the bind mount replaces that with the host's ownership at runtime, so
+# on a fresh box the container cannot create the database at all.
+Invoke-Box "chown -R 1001:1001 $BoxRoot/data" | Out-Null
 
-    # Not run inline: zima_ssh.py caps a command at 300s and the loot sync alone takes
-    # ~560s, so the channel times out and takes the visible progress with it. Started
-    # detached and polled instead.
-    Say "Syncing game data - around 10 minutes. Polling ..."
-    Invoke-Box "cd $BoxRoot && nohup sh -c 'cd $BoxRoot && DOCKER_CONFIG=$DockerConfig docker compose exec -T keystone-loadout npm run sync:all > /tmp/sync.log 2>&1; echo DONE >> /tmp/sync.log' > /dev/null 2>&1 & echo started"
+# drizzle-kit migrate is a no-op when nothing is pending, so this costs a couple of
+# seconds and removes the failure where new code meets an older schema and the app dies
+# with "no such column" after a deploy that reported success.
+Say "Applying any pending migrations ..."
+Invoke-Box "cd $BoxRoot && docker compose exec -T keystone-loadout npx drizzle-kit migrate" | Out-Null
 
-    $deadline = (Get-Date).AddMinutes(20)
+# Sync only when the data actually needs it. Running sync:all every deploy would be ~10
+# minutes and several hundred Blizzard requests; never running it is how the box quietly
+# serves last season's dungeons after a patch. scripts/data-age.ts decides, using the
+# same staleness threshold as the in-app banner.
+$needsSync = $false
+if ($Sync) {
+    $needsSync = $true
+    Say "Sync forced."
+} else {
+    Say "Checking whether game data is stale ..."
+    try {
+        Invoke-Box "cd $BoxRoot && docker compose exec -T keystone-loadout npm run data:age"
+    } catch {
+        $needsSync = $true
+    }
+}
+
+if ($needsSync) {
+    # Started detached and polled: zima_ssh.py caps a command at 300s and the loot sync
+    # alone takes ~560s, so an inline run loses the channel mid-sync.
+    Say "Syncing game data - around 10 minutes. This is not needed on most deploys." 'Yellow'
+    Invoke-Box "cd $BoxRoot && rm -f /tmp/sync.log && nohup sh -c 'cd $BoxRoot && DOCKER_CONFIG=$DockerConfig docker compose exec -T keystone-loadout npm run sync:all > /tmp/sync.log 2>&1; echo DONE >> /tmp/sync.log' > /dev/null 2>&1 & echo started" | Out-Null
+
+    $deadline = (Get-Date).AddMinutes(25)
     while ((Get-Date) -lt $deadline) {
         Start-Sleep -Seconds 30
-        # Invoke-Box throws when the marker is absent, so a successful call means done.
-        try { Invoke-Box 'grep -q DONE /tmp/sync.log' ; break } catch { }
+        try { Invoke-Box 'grep -q DONE /tmp/sync.log' | Out-Null; break } catch { }
         Say "  ... still syncing" 'DarkGray'
     }
 
-    Invoke-Box "grep -E 'OK |Error' /tmp/sync.log | tail -6"
+    Invoke-Box "grep -E 'OK |FAILED|Error' /tmp/sync.log | tail -6"
 }
 
 Say "Done. http://${Host_}:${Port}" 'Green'

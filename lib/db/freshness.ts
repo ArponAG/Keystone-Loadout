@@ -3,7 +3,7 @@ import 'server-only';
 import { desc, eq } from 'drizzle-orm';
 
 import { db, schema } from './client';
-import type { SyncSource } from './sync-run';
+import { STALE_AFTER_MS, type SyncSource } from './sync-run';
 
 /**
  * How trustworthy is the data currently on screen?
@@ -12,7 +12,7 @@ import type { SyncSource } from './sync-run';
  * indication — the numbers look identical either way. That is exactly the failure this
  * project keeps guarding against, so surfaces that present ranked data ask here first.
  */
-export const STALE_AFTER_MS = 7 * 86_400_000;
+export { STALE_AFTER_MS };
 
 export type Freshness = {
   /** Null when this source has never run. */

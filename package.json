@@ -17,7 +17,8 @@
     "sync:all": "npm run sync:instances && npm run sync:loot && npm run sync:news && npm run sync:upgrade-tracks",
     "verify": "tsx scripts/verify-assumptions.ts",
     "sync:safe": "npm run verify && npm run sync:all",
-    "sync:upgrade-tracks": "tsx scripts/sync-upgrade-tracks.ts"
+    "sync:upgrade-tracks": "tsx scripts/sync-upgrade-tracks.ts",
+    "data:age": "tsx scripts/data-age.ts"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",
