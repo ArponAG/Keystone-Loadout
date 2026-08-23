@@ -20,12 +20,12 @@ function Tile({
   colour?: string;
 }) {
   return (
-    <div className="flex-1 px-4 py-3 text-center">
+    <div className="rounded-xl bg-surface/70 px-4 py-3 text-center">
       <div className="tabular text-h1" style={{ color: colour ?? 'var(--color-ink)' }}>
         {value}
       </div>
-      <div className="mt-0.5 text-xs tracking-wide text-ink-soft uppercase">{label}</div>
-      {sub ? <div className="text-xs text-ink-faint">{sub}</div> : null}
+      <div className="mt-0.5 text-[11px] tracking-wide text-ink-soft uppercase">{label}</div>
+      {sub ? <div className="text-[11px] text-ink-faint">{sub}</div> : null}
     </div>
   );
 }
@@ -45,18 +45,15 @@ export function MythicPlusProgression({
   role: string;
 }) {
   return (
-    <section className="space-y-4">
-      <div>
-        <h3 className="text-h2 font-semibold text-ink pb-2.5">Mythic+ Progression</h3>
-        <div className="h-px w-full bg-gradient-to-r from-accent/20 via-line/20 to-transparent" />
-      </div>
+    <section>
+      <h3 className="mb-3 text-h2 font-semibold text-ink">Mythic+ Progression</h3>
 
-      <div className="flex flex-wrap divide-x divide-line rounded-xl border border-line bg-surface/80">
+      <div className="mb-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
         {/* Raider.IO's own tier colour for the score — the same green/orange their site uses. */}
         <Tile
           value={mplus.score.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
           label={role || 'Score'}
-          sub="Mythic+ Score"
+          sub="Mythic+ score"
           colour={mplus.colour}
         />
         <Tile value={mplus.timedRuns} label="Timed" sub="of best runs" />
@@ -71,25 +68,30 @@ export function MythicPlusProgression({
       </div>
 
       {mplus.bestRuns.length === 0 ? (
-        <p className="rounded-xl border border-line bg-surface/80 px-4 py-6 text-center text-sm text-ink-faint">
+        <p className="rounded-xl bg-surface/70 px-4 py-6 text-center text-sm text-ink-faint">
           No Mythic+ runs recorded this season.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-line bg-surface/80">
+        <div className="overflow-x-auto rounded-xl bg-surface/70">
           <table className="w-full min-w-[32rem] text-left">
             <thead>
-              <tr className="border-b border-line-strong text-xs tracking-wide text-ink-faint uppercase">
-                <th className="px-4 py-2 font-medium">Dungeon</th>
-                <th className="px-4 py-2 font-medium">Key</th>
-                <th className="px-4 py-2 font-medium">Time</th>
-                <th className="px-4 py-2 text-right font-medium">Score</th>
+              <tr className="text-[10px] tracking-wider text-ink-faint uppercase">
+                <th className="px-4 pt-3 pb-2 font-medium">Dungeon</th>
+                <th className="px-4 pt-3 pb-2 font-medium">Key</th>
+                <th className="px-4 pt-3 pb-2 font-medium">Time</th>
+                <th className="px-4 pt-3 pb-2 text-right font-medium">Score</th>
               </tr>
             </thead>
             <tbody>
               {mplus.bestRuns.map((run) => {
                 const timed = run.upgrades > 0;
+                // How much of the par time was used. Under 1 is a timed key, and the
+                // closer to 1 the nearer it was to depleting — which is the thing you
+                // actually want to see when deciding what you can push.
+                const ratio = run.parTimeMs > 0 ? run.clearTimeMs / run.parTimeMs : 1;
+
                 return (
-                  <tr key={run.dungeon} className="border-b border-line last:border-0 hover:bg-raised transition-colors">
+                  <tr key={run.dungeon} className="transition-colors hover:bg-raised">
                     <td className="px-4 py-2 text-sm text-ink">
                       <a href={run.url} target="_blank" rel="noreferrer" className="hover:text-accent">
                         {run.dungeon}
@@ -97,17 +99,33 @@ export function MythicPlusProgression({
                     </td>
                     <td className="px-4 py-2">
                       <span
-                        className="tabular text-sm"
-                        style={{ color: timed ? 'var(--color-ok)' : 'var(--color-ink-soft)' }}
+                        className="tabular rounded-md px-1.5 py-0.5 text-xs font-semibold"
+                        style={{
+                          color: timed ? 'var(--color-ok)' : 'var(--color-ink-soft)',
+                          backgroundColor: timed
+                            ? 'color-mix(in srgb, var(--color-ok) 15%, transparent)'
+                            : 'var(--color-raised)',
+                        }}
+                        title={timed ? `Timed with ${run.upgrades} upgrade${run.upgrades > 1 ? 's' : ''}` : 'Completed over time'}
                       >
                         +{run.level}
                         {timed ? ` ${'+'.repeat(run.upgrades)}` : ''}
                       </span>
                     </td>
-                    <td className="tabular px-4 py-2 text-sm text-ink-soft">
-                      {duration(run.clearTimeMs)}
-                      <span className="ml-1 text-xs text-ink-faint">
+                    <td className="px-4 py-2">
+                      <span className="tabular text-sm text-ink-soft">{duration(run.clearTimeMs)}</span>
+                      <span className="tabular ml-1 text-xs text-ink-faint">
                         / {duration(run.parTimeMs)}
+                      </span>
+                      {/* A bar reads faster than two timestamps: how close to depleting. */}
+                      <span className="mt-1 block h-[3px] w-24 overflow-hidden rounded-full bg-inset">
+                        <span
+                          className="block h-full rounded-full"
+                          style={{
+                            width: `${Math.min(100, ratio * 100)}%`,
+                            backgroundColor: timed ? 'var(--color-ok)' : 'var(--color-stale)',
+                          }}
+                        />
                       </span>
                     </td>
                     <td className="tabular px-4 py-2 text-right text-sm text-ink-soft">
@@ -121,10 +139,95 @@ export function MythicPlusProgression({
         </div>
       )}
 
-      <p className="text-xs text-ink-faint">
+      <p className="mt-2 text-xs text-ink-faint">
         “Timed” counts best runs per dungeon, not lifetime totals — Raider.IO’s public API
         does not expose the lifetime counters shown on their own site.
       </p>
+    </section>
+  );
+}
+
+// -------------------------------------------------------- Raid progression
+
+export type RaidProgress = {
+  summary: string;
+  total_bosses: number;
+  mythic_bosses_killed: number;
+  heroic_bosses_killed: number;
+  normal_bosses_killed: number;
+};
+
+const DIFFICULTIES = [
+  { key: 'normal_bosses_killed', label: 'N', colour: 'var(--color-track-veteran)' },
+  { key: 'heroic_bosses_killed', label: 'H', colour: 'var(--color-track-champion)' },
+  { key: 'mythic_bosses_killed', label: 'M', colour: 'var(--color-track-myth)' },
+] as const;
+
+/**
+ * Raider.IO slugs a tier before it has a public name — "tier-mn-1". Title-casing that
+ * produced "Tier Mn 1" on screen, which is not a raid anyone can look for, so those are
+ * labelled by what they are instead of being dressed up as a name.
+ */
+function raidLabel(slug: string): string {
+  if (/^tier-/.test(slug)) return 'Current tier';
+  return slug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+export function RaidProgression({ raids }: { raids: Record<string, RaidProgress> }) {
+  const entries = Object.entries(raids);
+  if (entries.length === 0) return null;
+
+  const killed = (p: RaidProgress) =>
+    p.normal_bosses_killed + p.heroic_bosses_killed + p.mythic_bosses_killed;
+
+  // Raider.IO's own `summary` field is an empty string until something dies, which is
+  // why this table used to render a column of blanks. Counting from the per-difficulty
+  // numbers always says something, including "nothing yet".
+  const anyProgress = entries.some(([, p]) => killed(p) > 0);
+
+  return (
+    <section>
+      <h3 className="mb-3 text-h2 font-semibold text-ink">Raid Progression</h3>
+
+      {!anyProgress ? (
+        <p className="rounded-xl bg-surface/70 px-4 py-6 text-center text-sm text-ink-faint">
+          No raid bosses killed this expansion.
+        </p>
+      ) : (
+        <div className="grid gap-2 sm:grid-cols-2">
+          {entries
+            .sort(([, a], [, b]) => killed(b) - killed(a))
+            .map(([slug, p]) => (
+              <div key={slug} className="flex items-center gap-3 rounded-xl bg-surface/70 px-3.5 py-2.5">
+                <span className="min-w-0 flex-1 truncate text-item font-medium text-ink">
+                  {raidLabel(slug)}
+                </span>
+
+                <span className="flex shrink-0 gap-1.5">
+                  {DIFFICULTIES.map(({ key, label, colour }) => {
+                    const n = p[key];
+                    const done = n > 0;
+                    return (
+                      <span
+                        key={key}
+                        className="tabular rounded-md px-1.5 py-0.5 text-[10px] font-semibold"
+                        style={{
+                          color: done ? colour : 'var(--color-ink-faint)',
+                          backgroundColor: done
+                            ? `color-mix(in srgb, ${colour} 18%, transparent)`
+                            : 'var(--color-raised)',
+                        }}
+                        title={`${label === 'N' ? 'Normal' : label === 'H' ? 'Heroic' : 'Mythic'}: ${n} of ${p.total_bosses}`}
+                      >
+                        {label} {n}/{p.total_bosses}
+                      </span>
+                    );
+                  })}
+                </span>
+              </div>
+            ))}
+        </div>
+      )}
     </section>
   );
 }
@@ -151,32 +254,40 @@ export function TalentBuildSection({ build, spec }: { build: TalentBuild; spec: 
   }
 
   return (
-    <section className="space-y-4">
-      <div>
-        <div className="flex flex-wrap items-center gap-3 pb-2.5">
-          <h3 className="text-h2 font-semibold text-ink">Talent Build</h3>
-          <span className="text-sm text-ink-faint">
-            {spec} · {build.picks.length} talents
-          </span>
-          <button
-            type="button"
-            onClick={copy}
-            className="ml-auto rounded-md border border-line-strong bg-raised px-3 py-1.5 text-xs font-medium text-ink-soft transition-colors hover:border-accent hover:text-accent"
-            title="Copy the in-game import string"
-          >
-            {copied ? 'Copied' : 'Copy'}
-          </button>
-        </div>
-        <div className="h-px w-full bg-gradient-to-r from-accent/20 via-line/20 to-transparent" />
+    <section>
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        <h3 className="text-h2 font-semibold text-ink">Talent Build</h3>
+        <span className="text-xs text-ink-faint">
+          {spec} · {build.picks.length} talents
+        </span>
+        {/*
+          The import string is the single most useful thing in this section — it pastes
+          straight into the game — so the copy control says what it copies rather than
+          hiding behind a bare "Copy" and a title attribute.
+        */}
+        <button
+          type="button"
+          onClick={copy}
+          className="ml-auto rounded-lg px-3 py-1.5 text-xs font-medium transition-colors"
+          style={
+            copied
+              ? { color: 'var(--color-ok)', backgroundColor: 'color-mix(in srgb, var(--color-ok) 15%, transparent)' }
+              : { color: 'var(--color-accent)', backgroundColor: 'var(--color-accent-muted)' }
+          }
+          title="Copy the in-game import string to your clipboard"
+        >
+          {copied ? 'Copied to clipboard' : 'Copy import string'}
+        </button>
       </div>
 
-      <div className="grid grid-cols-3 divide-x divide-line rounded-lg border border-line bg-surface">
+      <div className="grid gap-2 sm:grid-cols-3">
         {columns.map((column) => {
           const picks = build.picks.filter((p) => p.tree === column.key);
           return (
-            <div key={column.key} className="p-3">
-              <h4 className="mb-3 text-center text-xs tracking-wide text-ink-faint uppercase">
+            <div key={column.key} className="rounded-xl bg-surface/70 p-3">
+              <h4 className="mb-2.5 text-center text-[10px] tracking-wider text-ink-faint uppercase">
                 {column.label}
+                <span className="tabular ml-1.5 text-ink-faint/70">{picks.length}</span>
               </h4>
               {picks.length === 0 ? (
                 <p className="text-center text-xs text-ink-faint">—</p>
@@ -192,11 +303,11 @@ export function TalentBuildSection({ build, spec }: { build: TalentBuild; spec: 
         })}
       </div>
 
-      <details className="mt-3 rounded-lg border border-line bg-surface">
-        <summary className="cursor-pointer px-4 py-2 text-sm text-ink-soft hover:text-ink">
-          Import string
+      <details className="mt-2 rounded-xl bg-surface/50">
+        <summary className="cursor-pointer px-3.5 py-2.5 text-sm text-ink-soft transition-colors hover:text-ink">
+          Show the import string
         </summary>
-        <p className="border-t border-line p-4 font-mono text-xs break-all text-ink-faint">
+        <p className="px-3.5 pb-3.5 font-mono text-xs break-all text-ink-faint">
           {build.importString}
         </p>
       </details>

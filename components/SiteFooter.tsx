@@ -1,38 +1,21 @@
 /**
- * Required on every page. The Raidbots backlink is their published request for use
- * of the static data files; the Blizzard trademark line is required by their API ToS.
- * Non-commercial personal use. See planning/05-ui.md §8.
+ * Minimal by request. The Blizzard trademark line stays: it is required by the Game
+ * Data API terms, not a stylistic choice, so it is the one thing here that is not
+ * negotiable.
+ *
+ * The "Data from Raidbots · Raider.IO · Wowhead · Blizzard" source list was removed.
+ * Note for whoever revisits this: the Raidbots backlink was not decoration — it is
+ * their published request in return for use of their static data files, which
+ * `scripts/sync-loot.ts` reads. Fine to leave out for a personal LAN instance; worth
+ * restoring if this is ever put somewhere public. See planning/05-ui.md §8.
  */
-const SOURCES = [
-  { href: 'https://www.raidbots.com', label: 'Raidbots' },
-  { href: 'https://raider.io', label: 'Raider.IO' },
-  { href: 'https://www.wowhead.com', label: 'Wowhead' },
-  { href: 'https://develop.battle.net', label: 'Blizzard Game Data API' },
-];
-
 export function SiteFooter() {
   return (
-    <footer className="mt-16 border-t border-line bg-surface">
-      <div className="mx-auto max-w-6xl space-y-2 px-4 py-6 sm:px-6">
-        <p className="text-sm text-ink-faint">
+    <footer className="mt-16 border-t border-line">
+      <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6">
+        <p className="text-xs text-ink-faint">
           World of Warcraft® and Blizzard Entertainment® are trademarks of Blizzard
           Entertainment, Inc.
-        </p>
-        <p className="text-sm text-ink-faint">
-          Data from{' '}
-          {SOURCES.map((s, i) => (
-            <span key={s.href}>
-              <a
-                href={s.href}
-                target="_blank"
-                rel="noreferrer"
-                className="text-ink-soft underline decoration-line underline-offset-2 hover:text-accent"
-              >
-                {s.label}
-              </a>
-              {i < SOURCES.length - 1 ? ' · ' : ''}
-            </span>
-          ))}
         </p>
       </div>
     </footer>

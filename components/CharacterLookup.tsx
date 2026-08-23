@@ -5,7 +5,11 @@ import { useSearchParams } from 'next/navigation';
 
 import { CharacterSearch } from '@/components/CharacterSearch';
 import { SavedCharacters } from '@/components/SavedCharacters';
-import { MythicPlusProgression, TalentBuildSection } from '@/components/CharacterSections';
+import {
+  MythicPlusProgression,
+  RaidProgression,
+  TalentBuildSection,
+} from '@/components/CharacterSections';
 import { NextUpgrades } from '@/components/NextUpgrades';
 import { WowIcon } from '@/components/WowIcon';
 import { Banner } from '@/components/ui';
@@ -422,28 +426,7 @@ function Profile({
 
       {/* 5. Raid Progression Section */}
       {profile.raid_progression ? (
-        <section className="space-y-3">
-          <div>
-            <h3 className="text-h2 font-semibold text-ink pb-2.5">Raid Progression</h3>
-            <div className="h-px w-full bg-gradient-to-r from-accent/20 via-line/20 to-transparent" />
-          </div>
-          <div className="overflow-hidden rounded-xl border border-line bg-surface/80">
-            <table className="w-full min-w-[28rem] text-left">
-              <tbody>
-                {Object.entries(profile.raid_progression).map(([raid, progress]) => (
-                  <tr key={raid} className="border-b border-line last:border-0 hover:bg-raised transition-colors">
-                    <td className="px-4 py-2.5 text-sm font-medium text-ink">
-                      {raid.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
-                    </td>
-                    <td className="tabular px-4 py-2.5 text-right text-sm text-ink-soft font-mono">
-                      {progress.summary}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+        <RaidProgression raids={profile.raid_progression} />
       ) : null}
     </div>
   );
