@@ -107,6 +107,45 @@ export function nextReset(region: ResetRegion, kind: ResetKind, now: number = Da
 }
 
 /**
+ * The most recent reset that has already happened.
+ *
+ * Exists so progress can be measured against the real length of the current period
+ * rather than a hardcoded 24 hours or 7 days. Those are wrong twice a year: the day a
+ * zone enters or leaves DST is 23 or 25 hours long, and a bar drawn against a fixed
+ * 24 would visibly disagree with its own countdown on exactly the days people are most
+ * likely to be checking it.
+ */
+export function previousReset(region: ResetRegion, kind: ResetKind, now: number = Date.now()): number {
+  const anchor = RESET_ANCHORS[region];
+  const { year, month, day, weekday } = zonedParts(anchor.zone, now);
+
+  if (kind === 'daily') {
+    const today = zonedToUtc(anchor.zone, year, month, day, anchor.hour);
+    return today <= now ? today : zonedToUtc(anchor.zone, year, month, day - 1, anchor.hour);
+  }
+
+  let delta = (weekday - anchor.weekday + 7) % 7;
+  const candidate = zonedToUtc(anchor.zone, year, month, day - delta, anchor.hour);
+  if (candidate <= now) return candidate;
+
+  delta += 7;
+  return zonedToUtc(anchor.zone, year, month, day - delta, anchor.hour);
+}
+
+/**
+ * How far through the current period we are, 0 to 1.
+ *
+ * Measured between the surrounding resets, so a DST-shortened day still fills the bar
+ * exactly once.
+ */
+export function resetProgress(region: ResetRegion, kind: ResetKind, now: number = Date.now()): number {
+  const from = previousReset(region, kind, now);
+  const to = nextReset(region, kind, now);
+  if (to <= from) return 0;
+  return Math.min(1, Math.max(0, (now - from) / (to - from)));
+}
+
+/**
  * "1d 22h 29m 02s". Days and hours drop off once they are zero, but minutes and seconds
  * stay padded so the line does not change width every second and jitter the layout.
  */
