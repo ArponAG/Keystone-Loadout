@@ -6,7 +6,7 @@
  * `@/lib/db` instead, which re-exports this behind that guard.
  */
 import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 
@@ -34,7 +34,10 @@ export function dbReady(): boolean {
   if (!existsSync(DB_PATH)) return false;
 
   try {
-    const row = sqlite
+    // getSqlite(), not a module-level handle: the whole point of the lazy connection
+    // is that nothing opens the file until something actually asks a question of it.
+    // The existsSync guard above still short-circuits before we would create one.
+    const row = getSqlite()
       .prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name='instances'")
       .get() as { n: number };
     schemaReady = row.n > 0;
@@ -80,8 +83,50 @@ function createConnection(): Database.Database {
   return sqlite;
 }
 
-const sqlite = globalForDb.__sqlite ?? createConnection();
-if (process.env.NODE_ENV !== 'production') globalForDb.__sqlite = sqlite;
+/*
+  Opened LAZILY, on first query rather than on import.
 
-export const db = drizzle(sqlite, { schema });
+  This is the fix for an intermittent build failure. `next build` collects page data by
+  importing every route module across 12 parallel workers; when opening happened at
+  module load, all 12 raced to create the same database file and configure WAL, and the
+  losers killed the build with "Failed to collect page data for /news" - a different
+  route each time, which is what made it look random. busy_timeout narrowed the window
+  but did not close it: the failure that reproduced was SQLITE_IOERR_TRUNCATE during WAL
+  setup, not a lock wait.
+
+  Deferring means importing this module has no side effect at all. The routes that read
+  the database are `force-dynamic`, so none of them actually runs a query during the
+  build, and the file is simply never created there.
+*/
+let connection: Database.Database | null = null;
+
+function getSqlite(): Database.Database {
+  if (connection) return connection;
+  connection = globalForDb.__sqlite ?? createConnection();
+  if (process.env.NODE_ENV !== 'production') globalForDb.__sqlite = connection;
+  return connection;
+}
+
+let instance: BetterSQLite3Database<typeof schema> | null = null;
+
+function getDb(): BetterSQLite3Database<typeof schema> {
+  if (!instance) instance = drizzle(getSqlite(), { schema });
+  return instance;
+}
+
+/*
+  A Proxy so callers keep writing `db.select(...)` unchanged.
+
+  Methods are bound to the real instance before being handed back: drizzle's builders
+  rely on `this`, and an unbound method pulled off the proxy would be called with the
+  proxy as its receiver and fail.
+*/
+export const db = new Proxy({} as BetterSQLite3Database<typeof schema>, {
+  get(_target, prop) {
+    const real = getDb() as unknown as Record<string | symbol, unknown>;
+    const value = real[prop];
+    return typeof value === 'function' ? (value as (...a: unknown[]) => unknown).bind(real) : value;
+  },
+});
+
 export { schema };
