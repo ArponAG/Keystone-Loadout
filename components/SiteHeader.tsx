@@ -12,6 +12,11 @@ const NAV = [
   { href: '/gear', label: 'Gear Finder' },
   { href: '/loot', label: 'Loot' },
   { href: '/news', label: 'News' },
+  // Neither /sync nor /logs is linked.
+  //
+  // /logs shows who is using the app, and the people it lists are the ones being served
+  // the header - a nav entry would put their own usage record one click away from them.
+  //
   // /sync is deliberately not linked. It is an operator page — it can start syncs that
   // make hundreds of Blizzard requests — and this app is served to other people. The
   // route still works for whoever runs the server; it just is not advertised.

@@ -242,3 +242,43 @@ export const specs = sqliteTable('specs', {
   primaryStat: text('primary_stat'),
   syncedAt: integer('synced_at').notNull(),
 });
+
+/** One page view.
+ *
+ *  Grouped by `visitorId`, a first-party random id stored in a cookie — NOT a canvas or
+ *  WebGL fingerprint. A stored id is both more reliable (fingerprints drift with every
+ *  browser update) and less invasive, and it is stable across the VPN switching that
+ *  makes IP useless for identity here.
+ *
+ *  The IP is still recorded, because "which country is this connection coming from" is
+ *  worth seeing even when it changes hourly. It is just not what defines a person. */
+export const pageViews = sqliteTable(
+  'page_views',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    /** Random per-browser id from the keystone_vid cookie. */
+    visitorId: text('visitor_id').notNull(),
+    path: text('path').notNull(),
+    /** Null when the address cannot be determined. */
+    ip: text('ip'),
+    /** Coarse device label derived from the User-Agent, e.g. "Windows - Chrome". */
+    device: text('device'),
+    /** Viewport, purely to tell a phone from a desktop at a glance. */
+    screen: text('screen'),
+    at: integer('at').notNull(),
+  },
+  (t) => [index('idx_page_views_visitor').on(t.visitorId, t.at), index('idx_page_views_at').on(t.at)],
+);
+
+/** Country for an IP, cached so a busy day is not a burst of lookups.
+ *
+ *  Private addresses are stored with a null country and never looked up again: on a LAN
+ *  every visitor is 192.168.x.x, which no geolocation service can place. */
+export const ipGeo = sqliteTable('ip_geo', {
+  ip: text('ip').primaryKey(),
+  /** ISO 3166-1 alpha-2, lowercased. Null for private ranges or a failed lookup. */
+  countryCode: text('country_code'),
+  countryName: text('country_name'),
+  city: text('city'),
+  fetchedAt: integer('fetched_at').notNull(),
+});

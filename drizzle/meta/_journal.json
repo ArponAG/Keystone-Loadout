@@ -50,6 +50,13 @@
       "when": 1787467840284,
       "tag": "0006_dear_sauron",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1787639775821,
+      "tag": "0007_melodic_patriot",
+      "breakpoints": true
     }
   ]
 }

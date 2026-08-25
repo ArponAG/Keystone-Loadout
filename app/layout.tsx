@@ -5,6 +5,7 @@ import { ResetTimers } from '@/components/ResetTimers';
 import { SiteFooter } from '@/components/SiteFooter';
 import { SiteHeader } from '@/components/SiteHeader';
 import { TooltipPosition } from '@/components/TooltipPosition';
+import { UsageTracker } from '@/components/UsageTracker';
 
 import './globals.css';
 
@@ -25,6 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             column - inside, it would scroll away from the reader. */}
         <ResetTimers />
         <TooltipPosition />
+        <UsageTracker />
 
         {/*
           Wowhead's tooltip embed. This is the one third-party script in the app, and
